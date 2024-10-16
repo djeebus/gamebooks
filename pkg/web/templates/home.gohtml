@@ -1,0 +1,10 @@
+<html>
+<body>
+<h1>Game books</h1>
+<ul>
+    {{ range $book := .Books }}
+    <li><a href="/p/{{ $book.ID }}">{{ $book.Name }}</a></li>
+    {{ end }}
+</ul>
+</body>
+</html>
