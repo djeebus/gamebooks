@@ -1,18 +1,16 @@
 package main
 
 import (
-	"gamebooks/pkg/game"
+	bookRepo "gamebooks/pkg/repo"
+	"gamebooks/pkg/storage"
 	"gamebooks/pkg/web"
-	"github.com/pkg/errors"
 )
 
 func main() {
-	g, err := game.New(false)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create game")
-	}
+	g := bookRepo.NewWithLiveReload()
+	s := storage.NewInMemory()
 
-	e, err := web.New(g)
+	e, err := web.New(g, s)
 	if err != nil {
 		panic(err)
 	}

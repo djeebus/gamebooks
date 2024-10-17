@@ -4,9 +4,10 @@ go 1.23.2
 
 require (
 	github.com/Shopify/go-lua v0.0.0-20240527182111-9ab1540f3f5f
+	github.com/google/uuid v1.6.0
 	github.com/labstack/echo/v4 v4.12.0
 	github.com/pkg/errors v0.9.1
-	github.com/yuin/goldmark v1.7.7
+	github.com/yuin/goldmark v1.7.8
 )
 
 require (

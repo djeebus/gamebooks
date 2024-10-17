@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"embed"
 	"fmt"
-	"gamebooks/pkg/game"
 	"gamebooks/pkg/models"
+	"gamebooks/pkg/player"
+	bookRepo "gamebooks/pkg/repo"
+	"gamebooks/pkg/storage"
 	"github.com/labstack/echo/v4"
 	"github.com/pkg/errors"
 	"github.com/yuin/goldmark"
@@ -17,12 +19,14 @@ import (
 var fs embed.FS
 
 type views struct {
-	game      *game.Game
+	game      bookRepo.Game
+	storage   storage.Storage
+	player    *player.Player
 	templates map[string]*template.Template
 	markdown  goldmark.Markdown
 }
 
-func newViews(game *game.Game) (*views, error) {
+func newViews(game bookRepo.Game, storage storage.Storage) (*views, error) {
 	files, err := fs.ReadDir("templates")
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read templates")
@@ -45,6 +49,7 @@ func newViews(game *game.Game) (*views, error) {
 
 	return &views{
 		game:      game,
+		storage:   storage,
 		templates: templates,
 		markdown:  goldmark.New(),
 	}, nil
@@ -104,11 +109,16 @@ func (v *views) getPage(c echo.Context) error {
 
 	page, err := v.game.GetPage(bookID, pageID)
 	if err != nil {
-		return errors.Wrap(err, "failed to get page")
+		return errors.Wrapf(err, "failed to get page bookID=%s/pageID=%s", bookID, pageID)
+	}
+
+	results, err := v.player.ExecutePage(page, v.storage)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get page bookID=%s/pageID=%s", bookID, pageID)
 	}
 
 	var buf bytes.Buffer
-	if err = v.markdown.Convert([]byte(page.Markdown), &buf); err != nil {
+	if err = v.markdown.Convert([]byte(results.Markdown), &buf); err != nil {
 		return errors.Wrap(err, "failed to render markdown")
 	}
 
