@@ -1,8 +1,11 @@
-initial_cash = get_storage("initial_cash")
+local storage = require("gamebooks/storage")
+local dice = require("gamebooks/dice")
+
+local initial_cash = storage.get("initial_cash")
 if initial_cash == nil then
-    initial_cash = roll_die(1, 6) * 100 + 150
-    set_storage("initial_cash", initial_cash)
-    set_storage("cash", initial_cash)
+    initial_cash = dice.roll(1, 6) * 100 + 150
+    storage.set("initial_cash", initial_cash)
+    storage.set("cash", initial_cash)
 end
 
 local _M = {
@@ -28,7 +31,7 @@ the boat has 15 [fuel units](r211). In addition, a [stasis unit](r212e)
 is mounted in the pilot's compartment with 2 CU
 capacity, to protect the occupants in case of disaster. You
 personally own a [utility suit](r213) and a [sidearm](r216d), both
-of tech level 1. Your only money is in your pocket.
+of tech level 1. Your only money is the %s Sees in your pocket.
 You have no crew or hirelings, no cargo, and no repair units.
 However, you do have proper papers and are not [wanted](r228) in
 any system. This is the first day of the week, so you have

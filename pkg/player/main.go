@@ -45,25 +45,27 @@ func processMarkdownPage(path string) (*models.PageResult, error) {
 }
 
 func processPageScript(path string, storage storage.Storage) (*models.PageResult, error) {
+	var err error
 	var results models.PageResult
 
 	l := lua.NewState()
-	lua.BaseOpen(l)
-	if !lua.NewMetaTable(l, "pageMetaTable") {
-		return nil, errors.New("failed to create new metatable")
+
+	if err = lua.LoadFile(l, path, ""); err != nil {
+		return nil, errors.Wrap(err, "failed to load file")
 	}
 
-	lua.SetFunctions(l, []lua.RegistryFunction{
-		{Name: "get_storage", Function: getStorage(storage)},
-		{Name: "set_storage", Function: setStorage(storage)},
-		{Name: "roll_die", Function: rollDie},
-	}, 0)
+	lua.OpenLibraries(l)
+	open(l, "gamebooks/storage", []lua.RegistryFunction{
+		{Name: "get", Function: getStorage(storage)},
+		{Name: "set", Function: setStorage(storage)},
+	})
+	open(l, "gamebooks/dice", []lua.RegistryFunction{
+		{Name: "roll", Function: rollDie},
+	})
 
-	if err := lua.DoFile(l, path); err != nil {
-		return nil, errors.Wrap(err, "failed to load page lua script")
+	if err = l.ProtectedCall(0, 1, 0); err != nil {
+		return nil, errors.Wrap(err, "failed to execute lua script")
 	}
-
-	var err error
 
 	if results.Markdown, err = getLuaStringField(l, -1, -1, "markdown"); err != nil {
 		return nil, errors.Wrap(err, "failed to load markdown")
@@ -74,22 +76,6 @@ func processPageScript(path string, storage storage.Storage) (*models.PageResult
 	}
 
 	return &results, nil
-}
-
-func getStorage(storage.Storage) lua.Function {
-	return func(state *lua.State) int {
-		panic("getStorage")
-	}
-}
-
-func setStorage(storage.Storage) lua.Function {
-	return func(state *lua.State) int {
-		panic("setStorage")
-	}
-}
-
-func rollDie(*lua.State) int {
-	panic("rollDie")
 }
 
 func getLuaStringField(l *lua.State, idx1, idx2 int, fieldName string) (string, error) {
