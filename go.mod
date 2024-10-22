@@ -8,6 +8,7 @@ require (
 	github.com/labstack/echo/v4 v4.12.0
 	github.com/pkg/errors v0.9.1
 	github.com/yuin/goldmark v1.7.8
+	github.com/yuin/goldmark-meta v1.1.0
 )
 
 require (
@@ -22,4 +23,5 @@ require (
 	golang.org/x/sys v0.19.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
+	gopkg.in/yaml.v2 v2.3.0 // indirect
 )

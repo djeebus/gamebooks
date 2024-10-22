@@ -10,7 +10,6 @@ end
 
 local _M = {
     title = "The Adventure Begins",
-    duration = 0,
     markdown = string.format([[
 Due to bad luck and loan sharks, your financial situation is
 getting very desperate. Your small merchant starship never

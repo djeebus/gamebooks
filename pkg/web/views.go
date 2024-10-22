@@ -4,58 +4,47 @@ import (
 	"bytes"
 	"embed"
 	"fmt"
+	"gamebooks/pkg/executor"
 	"gamebooks/pkg/models"
-	"gamebooks/pkg/player"
 	bookRepo "gamebooks/pkg/repo"
 	"gamebooks/pkg/storage"
 	"github.com/labstack/echo/v4"
 	"github.com/pkg/errors"
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark-meta"
+	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/parser"
 	"html/template"
 	"net/http"
+	"path/filepath"
 )
 
 //go:embed templates/*
 var fs embed.FS
 
 type views struct {
-	game      bookRepo.Game
-	storage   storage.Storage
-	player    *player.Player
-	templates map[string]*template.Template
-	markdown  goldmark.Markdown
+	game     bookRepo.Game
+	storage  storage.Storage
+	player   *executor.Player
+	markdown goldmark.Markdown
 }
 
-func newViews(game bookRepo.Game, storage storage.Storage) (*views, error) {
-	files, err := fs.ReadDir("templates")
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to read templates")
-	}
-
-	templates := make(map[string]*template.Template)
-	for _, file := range files {
-		if file.IsDir() {
-			continue
-		}
-
-		path := fmt.Sprintf("templates/%s", file.Name())
-		tmpl, err := template.ParseFS(fs, path)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to parse template: %s", file.Name())
-		}
-
-		templates[file.Name()] = tmpl
-	}
-
+func newViews(game bookRepo.Game, storage storage.Storage, player *executor.Player) (*views, error) {
 	return &views{
-		game:      game,
-		storage:   storage,
-		templates: templates,
-		markdown:  goldmark.New(),
+		game:    game,
+		storage: storage,
+		player:  player,
+		markdown: goldmark.New(
+			goldmark.WithExtensions(
+				extension.NewTable(),
+				meta.Meta,
+			),
+		),
 	}, nil
 }
 
 type indexModel struct {
+	Title string
 	Books []*models.Book
 }
 
@@ -65,14 +54,27 @@ func (v *views) index(c echo.Context) error {
 		return errors.Wrap(err, "failed to get books")
 	}
 
-	tmpl, ok := v.templates["home.gohtml"]
-	if !ok {
-		return errors.New("no home template")
+	viewModel := indexModel{"books", books}
+	return v.renderTemplate(c, "home.gohtml", viewModel)
+}
+
+const baseTemplateName = "_layout.gohtml"
+
+func (v *views) renderTemplate(c echo.Context, templateName string, viewModel interface{}) error {
+	var err error
+
+	tmpl, err := template.ParseFS(fs,
+		filepath.Join("templates", templateName),
+		filepath.Join("templates", baseTemplateName),
+	)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse template")
 	}
+
 	return tmpl.ExecuteTemplate(
 		c.Response().Writer,
-		"home.gohtml",
-		indexModel{books},
+		baseTemplateName,
+		viewModel,
 	)
 }
 
@@ -86,11 +88,6 @@ func (v *views) getBook(c echo.Context) error {
 
 	path := fmt.Sprintf("/p/%s/%s", book.ID, book.StartPage)
 	return c.Redirect(http.StatusFound, path)
-}
-
-type pageModel struct {
-	Page *models.Page
-	HTML template.HTML
 }
 
 func (v *views) getPage(c echo.Context) error {
@@ -112,24 +109,58 @@ func (v *views) getPage(c echo.Context) error {
 		return errors.Wrapf(err, "failed to get page bookID=%s/pageID=%s", bookID, pageID)
 	}
 
-	results, err := v.player.ExecutePage(page, v.storage)
+	results, err := v.player.ExecutePage(book, page, v.storage)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get page bookID=%s/pageID=%s", bookID, pageID)
 	}
 
+	viewModel, err := v.generatePageViewModel(results, book, page)
+	if err != nil {
+		return errors.Wrapf(err, "failed to generate viewModel bookID=%s/pageID=%s", bookID, pageID)
+	}
+
+	return v.renderTemplate(c, "page.gohtml", viewModel)
+}
+
+type pageModel struct {
+	Title string
+	Book  *models.Book
+	Page  *models.Page
+
+	HTML template.HTML
+}
+
+func (v *views) generatePageViewModel(results *models.PageResult, book *models.Book, page *models.Page) (pageModel, error) {
+	markdown := results.Markdown
+	if results.Title != "" {
+		markdown = fmt.Sprintf("# %s\n%s", results.Title, markdown)
+	}
+
+	context := parser.NewContext()
+
 	var buf bytes.Buffer
-	if err = v.markdown.Convert([]byte(results.Markdown), &buf); err != nil {
-		return errors.Wrap(err, "failed to render markdown")
+	if err := v.markdown.Convert([]byte(markdown), &buf, parser.WithContext(context)); err != nil {
+		return pageModel{}, errors.Wrap(err, "failed to render markdown")
 	}
 
-	tmpl, ok := v.templates["page.gohtml"]
-	if !ok {
-		return errors.New("no home template")
+	text := buf.String()
+
+	result := pageModel{
+		Book: book,
+		Page: page,
 	}
 
-	return tmpl.ExecuteTemplate(
-		c.Response().Writer,
-		"page.gohtml",
-		pageModel{Page: page, HTML: template.HTML(buf.String())},
-	)
+	metadata := meta.Get(context)
+	if titleIface, ok := metadata["title"]; ok {
+		title, ok := titleIface.(string)
+		if ok {
+			text = "<h1>" + title + "</h1>\n" + text
+			result.Title = title
+		}
+	}
+
+	result.Title = book.Name
+	result.HTML = template.HTML(text)
+
+	return result, nil
 }

@@ -1,9 +1,18 @@
-package player
+package executor
 
 import (
 	"github.com/Shopify/go-lua"
 	"math/rand"
 )
+
+func diceLibrary() []lua.RegistryFunction {
+	return []lua.RegistryFunction{
+		{
+			Name:     "roll",
+			Function: rollDie,
+		},
+	}
+}
 
 func rollDie(l *lua.State) int {
 	numberOfDice := lua.CheckInteger(l, 1)

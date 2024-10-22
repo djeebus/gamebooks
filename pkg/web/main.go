@@ -1,23 +1,22 @@
 package web
 
 import (
+	"gamebooks/pkg/executor"
 	bookRepo "gamebooks/pkg/repo"
 	"gamebooks/pkg/storage"
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 	"github.com/pkg/errors"
 )
 
-func New(g bookRepo.Game, storage storage.Storage) (*echo.Echo, error) {
+func New(g bookRepo.Game, storage storage.Storage, player *executor.Player) (*echo.Echo, error) {
 	e := echo.New()
 	e.Debug = true
 	e.HideBanner = true
 
-	e.Use(middleware.Logger())
-	e.Use(middleware.Recover())
+	e.Use(logRequests)
 	e.Use(addSessionID)
 
-	v, err := newViews(g, storage)
+	v, err := newViews(g, storage, player)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create views")
 	}

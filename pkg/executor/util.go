@@ -1,4 +1,4 @@
-package player
+package executor
 
 import (
 	"fmt"
@@ -18,6 +18,8 @@ func deepPush(l *lua.State, v interface{}) int {
 	switch val := v.(type) {
 	case nil:
 		l.PushNil()
+	case bool:
+		l.PushBoolean(val)
 	case string:
 		l.PushString(val)
 	case int:

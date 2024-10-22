@@ -1,16 +1,18 @@
 package main
 
 import (
+	"gamebooks/pkg/executor"
 	bookRepo "gamebooks/pkg/repo"
 	"gamebooks/pkg/storage"
 	"gamebooks/pkg/web"
 )
 
 func main() {
-	g := bookRepo.NewWithLiveReload()
+	p := executor.New()
+	g := bookRepo.NewWithLiveReload(p)
 	s := storage.NewInMemory()
 
-	e, err := web.New(g, s)
+	e, err := web.New(g, s, p)
 	if err != nil {
 		panic(err)
 	}

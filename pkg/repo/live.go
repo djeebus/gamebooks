@@ -1,9 +1,9 @@
 package bookRepo
 
 import (
-	"fmt"
+	"gamebooks/pkg/executor"
 	"gamebooks/pkg/models"
-	"github.com/Shopify/go-lua"
+	"gamebooks/pkg/storage"
 	"github.com/pkg/errors"
 	"io/fs"
 	"os"
@@ -11,11 +11,12 @@ import (
 	"strings"
 )
 
-func NewWithLiveReload() Game {
-	return new(LiveReload)
+func NewWithLiveReload(player *executor.Player) Game {
+	return &LiveReload{player: player}
 }
 
 type LiveReload struct {
+	player *executor.Player
 }
 
 func (l *LiveReload) GetBooks() ([]*models.Book, error) {
@@ -30,9 +31,15 @@ func (l *LiveReload) GetBooks() ([]*models.Book, error) {
 			continue
 		}
 
-		book := models.Book{ID: bookEntry.Name()}
+		book := models.Book{
+			ID:      bookEntry.Name(),
+			Path:    bookEntry.Name(),
+			LuaPath: filepath.Join(bookEntry.Name(), "game.lua"),
+		}
 
-		err = processBookScript(&book)
+		if err = l.player.ExecuteBook(&book, storage.Noop()); err != nil {
+			return nil, errors.Wrap(err, "failed to execute gamebook")
+		}
 
 		books = append(books, &book)
 	}
@@ -40,57 +47,28 @@ func (l *LiveReload) GetBooks() ([]*models.Book, error) {
 	return books, nil
 }
 
-func processBookScript(book *models.Book) error {
-	l := lua.NewState()
-	lua.OpenLibraries(l)
-
-	path := filepath.Join("books", book.ID, "game.lua")
-	if err := lua.DoFile(l, path); err != nil {
-		return errors.Wrap(err, "failed to load game lua script")
-	}
-
-	var err error
-
-	book.Name, err = getLuaStringField(l, -1, -1, "name")
-	if err != nil {
-		return errors.Wrap(err, "failed to load name")
-	}
-
-	book.StartPage, err = getLuaStringField(l, -2, -1, "start_page")
-	if err != nil {
-		return errors.Wrap(err, "failed to load start_page")
-	}
-
-	return nil
-}
-
-var ErrNoField = errors.New("no field")
-
-func getLuaStringField(l *lua.State, idx1, idx2 int, fieldName string) (string, error) {
-	l.Field(idx1, fieldName)
-
-	val, ok := l.ToString(idx2)
-	if !ok {
-		return "", ErrNoField
-	}
-
-	return val, nil
-}
-
 func (l *LiveReload) GetBookByID(bookID string) (*models.Book, error) {
-	book := models.Book{ID: bookID}
-	err := processBookScript(&book)
-	return &book, errors.Wrapf(err, "failed to find book %q", bookID)
+	book := models.Book{
+		ID:      bookID,
+		Path:    filepath.Join("books", bookID),
+		LuaPath: filepath.Join("books", bookID, "game.lua"),
+	}
+	err := l.player.ExecuteBook(&book, storage.Noop())
+	return &book, errors.Wrapf(err, "failed to build book %q", bookID)
 }
 
 var ErrDone = errors.New("done")
 
 func (l *LiveReload) findPageFile(bookID, pageID string) (string, error) {
-	pagesPath := fmt.Sprintf("books/%s/pages", bookID)
+	pagesPath := filepath.Join("books", bookID)
 
 	var pagePath string
 
 	err := filepath.Walk(pagesPath, func(path string, info fs.FileInfo, err error) error {
+		if info == nil { // but why??
+			return nil
+		}
+
 		if info.IsDir() {
 			return nil
 		}
