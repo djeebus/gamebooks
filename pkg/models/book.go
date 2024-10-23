@@ -2,13 +2,12 @@ package models
 
 type Book struct {
 	ID   string
-	Name string
 	Path string
 
-	LuaPath   string
-	StartPage string
+	LuaPath string
 }
 
 type BookResult struct {
-	Functions map[string]interface{}
+	Name      string
+	StartPage string
 }

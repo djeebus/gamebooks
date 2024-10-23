@@ -2,7 +2,7 @@
 <h1>Game books</h1>
 <ul>
     {{ range $book := .Books }}
-    <li><a href="/p/{{ $book.ID }}">{{ $book.Name }}</a></li>
+    <li><a href="/start/{{ $book.ID }}">{{ $book.ID }}</a></li>
     {{ end }}
 </ul>
 {{ end }}

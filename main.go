@@ -5,14 +5,18 @@ import (
 	bookRepo "gamebooks/pkg/repo"
 	"gamebooks/pkg/storage"
 	"gamebooks/pkg/web"
+	zerolog "github.com/rs/zerolog"
 )
 
 func main() {
+	lw := zerolog.NewConsoleWriter()
+	l := zerolog.New(lw)
+
 	p := executor.New()
 	g := bookRepo.NewWithLiveReload(p)
 	s := storage.NewInMemory()
 
-	e, err := web.New(g, s, p)
+	e, err := web.New(g, s, p, l)
 	if err != nil {
 		panic(err)
 	}

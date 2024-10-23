@@ -1,16 +1,16 @@
 package storage
 
-func PageStorage(s Storage, pageID string) Storage {
-	return pageStorage{s: s, pageID: pageID}
+func NamespacedStorage(s Storage, namespace string) Storage {
+	return pageStorage{s: s, namespace: namespace}
 }
 
 type pageStorage struct {
-	s      Storage
-	pageID string
+	s         Storage
+	namespace string
 }
 
 func (p pageStorage) makePageKey(key string) string {
-	return p.pageID + "||" + key
+	return p.namespace + "||" + key
 }
 
 func (p pageStorage) Get(key string) interface{} {

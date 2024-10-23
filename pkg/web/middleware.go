@@ -4,6 +4,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"net/http"
 	"time"
 )
@@ -29,4 +30,14 @@ func addSessionID(next echo.HandlerFunc) echo.HandlerFunc {
 
 		return next(c)
 	}
+}
+
+func getUserID(c echo.Context) string {
+	result, err := c.Cookie(authCookieName)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to retrieve cookie")
+		return ""
+	}
+
+	return result.Value
 }

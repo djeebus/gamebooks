@@ -14,8 +14,8 @@ func storageFunctions(s storage.Storage) []lua.RegistryFunction {
 
 func pageStorageFunctions(s storage.Storage, pageID string) []lua.RegistryFunction {
 	return append([]lua.RegistryFunction{
-		{Name: "get_page", Function: getStorage(storage.PageStorage(s, pageID))},
-		{Name: "set_page", Function: setStorage(storage.PageStorage(s, pageID))},
+		{Name: "get_page", Function: getStorage(storage.NamespacedStorage(s, pageID))},
+		{Name: "set_page", Function: setStorage(storage.NamespacedStorage(s, pageID))},
 	}, storageFunctions(s)...)
 }
 

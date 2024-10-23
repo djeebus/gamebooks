@@ -1,12 +1,14 @@
 local table = require("table")
-local book = require("game")
+
 local dice = require("gamebooks/dice")
 local storage = require("gamebooks/storage")
 
+local abilities = require("lib/abilities")
+local party = require("lib/party")
+
 local title = "Prisoner Pleads for Escape"
 
-party = book.get_party()
-
+party = party.get_party()
 
 if #party > 0 then
     return {
@@ -22,15 +24,13 @@ if storage.get_page("step-1") == nil then
     pay you 8,000 S.
     ]]
 
-    storage.set_page("step-1", true)
-
     -- is the prisoner telling the truth? store for later
     local truth_roll = dice.roll(1, 6)
     local is_truth = (truth_roll ~= 6)
     storage.set("e087-prisoner-truth", is_truth)
 
     -- do you know if he's telling the truth?
-    local success = book.make_cunning_roll()  -- r202 for implementation
+    local success = abilities.make_cunning_roll()  -- r202 for implementation
     if success then
         if is_truth then
             text = text .. " You can tell that he's telling the truth."
@@ -47,6 +47,8 @@ and will leave this area and enter another as part of the activity
 The former prisoner is "wanted" in this star system, and is E
 1d6, M 1d6, H 1d6+1 (maximum of 6). He is a willing member
 of your party until you next reach Byzantium or Imperia.]]
+
+    storage.set_page("step-1", true)
 
     return {
         title = title,

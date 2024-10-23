@@ -3,7 +3,6 @@ package bookRepo
 import (
 	"gamebooks/pkg/executor"
 	"gamebooks/pkg/models"
-	"gamebooks/pkg/storage"
 	"github.com/pkg/errors"
 	"io/fs"
 	"os"
@@ -37,10 +36,6 @@ func (l *LiveReload) GetBooks() ([]*models.Book, error) {
 			LuaPath: filepath.Join(bookEntry.Name(), "game.lua"),
 		}
 
-		if err = l.player.ExecuteBook(&book, storage.Noop()); err != nil {
-			return nil, errors.Wrap(err, "failed to execute gamebook")
-		}
-
 		books = append(books, &book)
 	}
 
@@ -53,8 +48,7 @@ func (l *LiveReload) GetBookByID(bookID string) (*models.Book, error) {
 		Path:    filepath.Join("books", bookID),
 		LuaPath: filepath.Join("books", bookID, "game.lua"),
 	}
-	err := l.player.ExecuteBook(&book, storage.Noop())
-	return &book, errors.Wrapf(err, "failed to build book %q", bookID)
+	return &book, nil
 }
 
 var ErrDone = errors.New("done")
