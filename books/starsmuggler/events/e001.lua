@@ -1,13 +1,3 @@
-local storage = require("gamebooks/storage")
-local dice = require("gamebooks/dice")
-
-local initial_cash = storage.get("initial_cash")
-if initial_cash == nil then
-    initial_cash = dice.roll(1, 6) * 100 + 150
-    storage.set("initial_cash", initial_cash)
-    storage.set("cash", initial_cash)
-end
-
 local _M = {
     title = "The Adventure Begins",
     markdown = string.format([[

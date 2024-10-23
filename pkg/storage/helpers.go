@@ -13,3 +13,18 @@ func GetString(s Storage, key string) string {
 
 	return val
 }
+
+func GetBool(s Storage, key string) bool {
+	result := s.Get(key)
+	if result == nil {
+		return false
+	}
+
+	val, ok := result.(bool)
+	if !ok {
+		return false
+	}
+
+	return val
+
+}

@@ -9,8 +9,12 @@ return {
         storage.set(cunning_key, cunning_score)
     end,
 
+    get_cunning = function()
+        return storage.get(cunning_key)
+    end,
+
     make_cunning_roll = function()
-        local cunning_score = storage.get(cunning_key)
+        local cunning_score = this.get_cunning()
         if cunning_score == nil then
             error("cunning score is missing!")
         end

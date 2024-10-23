@@ -10,12 +10,12 @@ import (
 	"strings"
 )
 
-func NewWithLiveReload(player *executor.Player) Game {
-	return &LiveReload{player: player}
+func NewWithLiveReload(executor *executor.Executor) Game {
+	return &LiveReload{executor: executor}
 }
 
 type LiveReload struct {
-	player *executor.Player
+	executor *executor.Executor
 }
 
 func (l *LiveReload) GetBooks() ([]*models.Book, error) {
@@ -31,9 +31,8 @@ func (l *LiveReload) GetBooks() ([]*models.Book, error) {
 		}
 
 		book := models.Book{
-			ID:      bookEntry.Name(),
-			Path:    bookEntry.Name(),
-			LuaPath: filepath.Join(bookEntry.Name(), "game.lua"),
+			ID:   bookEntry.Name(),
+			Path: bookEntry.Name(),
 		}
 
 		books = append(books, &book)
@@ -44,9 +43,8 @@ func (l *LiveReload) GetBooks() ([]*models.Book, error) {
 
 func (l *LiveReload) GetBookByID(bookID string) (*models.Book, error) {
 	book := models.Book{
-		ID:      bookID,
-		Path:    filepath.Join("books", bookID),
-		LuaPath: filepath.Join("books", bookID, "game.lua"),
+		ID:   bookID,
+		Path: filepath.Join("books", bookID),
 	}
 	return &book, nil
 }

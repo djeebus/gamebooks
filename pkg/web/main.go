@@ -11,7 +11,7 @@ import (
 	"github.com/ziflex/lecho/v3"
 )
 
-func New(g bookRepo.Game, storage storage.Storage, player *executor.Player, log zerolog.Logger) (*echo.Echo, error) {
+func New(g bookRepo.Game, storage storage.Storage, executor *executor.Executor, log zerolog.Logger) (*echo.Echo, error) {
 	e := echo.New()
 	e.Debug = true
 	e.HideBanner = true
@@ -22,16 +22,13 @@ func New(g bookRepo.Game, storage storage.Storage, player *executor.Player, log 
 	e.Use(recordErrors)
 	e.Use(addSessionID)
 
-	v, err := newViews(g, storage, player)
+	v, err := newViews(g, storage, executor)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create views")
 	}
 
-	e.GET("/game", v.gameView)
-	e.POST("/game", v.gameNext)
-
-	e.GET("/", v.listBooks)
-	e.GET("/start/:bookID", v.selectBook)
+	e.GET("/", v.gameView)
+	e.POST("/", v.gameNext)
 
 	return e, nil
 }

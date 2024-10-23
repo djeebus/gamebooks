@@ -20,7 +20,7 @@ func rollDie(l *lua.State) int {
 
 	var total int
 	for range numberOfDice {
-		total += rand.Intn(sizeOfDice)
+		total += rand.Intn(sizeOfDice) + 1
 	}
 	return deepPush(l, total)
 }

@@ -48,12 +48,16 @@ func (l linkTrackingParser) Parse(parent ast.Node, block text.Reader, pc parser.
 		}
 		stored = append(stored, string(l.Destination))
 		pc.Set(linksKey, stored)
-		l.Destination = append([]byte("?id="), l.Destination...)
+		l.Destination = append([]byte("?goto="), l.Destination...)
 	}
 
 	return result
 }
 
 func getLinksFromContext(context parser.Context) []string {
-	return context.Get(linksKey).([]string)
+	links, ok := context.Get(linksKey).([]string)
+	if !ok {
+		return nil
+	}
+	return links
 }
