@@ -11,6 +11,7 @@ import (
 func main() {
 	lw := zerolog.NewConsoleWriter()
 	l := zerolog.New(lw)
+	l.Level(zerolog.DebugLevel)
 
 	p := executor.New()
 	g := bookRepo.NewWithLiveReload(p)

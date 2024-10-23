@@ -1,26 +1,25 @@
 package executor
 
 import (
-	"fmt"
 	"gamebooks/pkg/models"
 	"gamebooks/pkg/storage"
 	"github.com/Shopify/go-lua"
 	"github.com/pkg/errors"
-	"os"
-	"path/filepath"
 )
 
-func (p *Executor) ExecutePage(book *models.Book, page *models.Page, storage storage.Storage) (*models.PageResult, error) {
-	switch filepath.Ext(page.Path) {
-	case ".lua":
-		results, err := processPageScript(book, page, storage)
-		return results, errors.Wrap(err, "failed to page process script")
-	case ".md":
-		results, err := processMarkdownPage(page.Path)
-		return results, errors.Wrapf(err, "failed to build markdown page")
-	default:
-		return nil, fmt.Errorf("not implemented: %q", page.Path)
+func processBookLuaScript(path string, book *models.Book, storage storage.Storage) (models.BookResult, error) {
+	l := lua.NewState()
+
+	luaOpenLibraries(l, book)
+
+	open(l, "gamebooks/storage", storageFunctions(storage))
+	open(l, "gamebooks/dice", diceLibrary())
+
+	if err := lua.DoFile(l, path); err != nil {
+		return nil, errors.Wrap(err, "failed to load game lua script")
 	}
+
+	return newBookResult(l)
 }
 
 func processPageScript(book *models.Book, page *models.Page, storage storage.Storage) (*models.PageResult, error) {
@@ -58,17 +57,5 @@ func processPageScript(book *models.Book, page *models.Page, storage storage.Sto
 	}
 	l.Pop(1)
 
-	return &results, nil
-}
-
-func processMarkdownPage(path string) (*models.PageResult, error) {
-	var results models.PageResult
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to read file")
-	}
-
-	results.Markdown = string(data)
 	return &results, nil
 }

@@ -61,6 +61,7 @@ func (v *views) gameView(c echo.Context) error {
 
 	if newBookID := c.QueryParam("bookID"); newBookID != "" {
 		playerStorage.Set(keyBookID, newBookID)
+		return c.Redirect(http.StatusTemporaryRedirect, "/")
 	}
 
 	bookID := storage.GetString(playerStorage, keyBookID)

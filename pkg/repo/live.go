@@ -4,6 +4,7 @@ import (
 	"gamebooks/pkg/executor"
 	"gamebooks/pkg/models"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -57,6 +58,8 @@ func (l *LiveReload) findPageFile(bookID, pageID string) (string, error) {
 	var pagePath string
 
 	err := filepath.Walk(pagesPath, func(path string, info fs.FileInfo, err error) error {
+		log.Debug().Msg(path)
+
 		if info == nil { // but why??
 			return nil
 		}
