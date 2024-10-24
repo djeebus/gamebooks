@@ -5,3 +5,6 @@ def get_party():
     if party is None:
         party = []
     return party
+
+def add_crew(player):
+    storage_push(party_key, player)

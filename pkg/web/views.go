@@ -173,7 +173,7 @@ func (v *views) buildBreadcrumbs(s storage.Storage) string {
 
 	var result string
 	for _, pageID := range pageIDs {
-		result += fmt.Sprintf("[%s](%s) > ", pageID, pageID)
+		result += fmt.Sprintf("%s > ", pageID)
 	}
 
 	return result

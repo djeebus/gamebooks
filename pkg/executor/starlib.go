@@ -17,7 +17,7 @@ func starlarkPredeclared(s storage.Storage) starlark.StringDict {
 				"count", &count,
 				"size", &size,
 			); err != nil {
-				return nil, errors.Wrap(err, "failed to parse diceRoll args")
+				return nil, errors.Wrap(err, "failed to parse dice_roll args")
 			}
 
 			total := rollDie(count, size)
@@ -31,11 +31,31 @@ func starlarkPredeclared(s storage.Storage) starlark.StringDict {
 				args, kwargs,
 				"key", &key,
 			); err != nil {
-				return nil, errors.Wrap(err, "failed to parse storageSet args")
+				return nil, errors.Wrap(err, "failed to parse storage_get args")
 			}
 
 			value := s.Get(key)
 			return makeStarlarkValue(value)
+		}),
+		"storage_push": starlark.NewBuiltin("storage_push", func(thread *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+			var key string
+			var value starlark.Value
+
+			if err := starlark.UnpackArgs(fn.Name(),
+				args, kwargs,
+				"key", &key,
+				"value", &value,
+			); err != nil {
+				return nil, errors.Wrap(err, "failed to parse storage_push args")
+			}
+
+			val, err := unwrapStarlarkValue(value)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to unwrap starlark value")
+			}
+
+			storage.Push(s, key, val)
+			return starlark.None, nil
 		}),
 		"storage_set": starlark.NewBuiltin("storage_set", func(thread *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
 			var key string
@@ -46,7 +66,7 @@ func starlarkPredeclared(s storage.Storage) starlark.StringDict {
 				"key", &key,
 				"value", &value,
 			); err != nil {
-				return nil, errors.Wrap(err, "failed to parse storageSet args")
+				return nil, errors.Wrap(err, "failed to parse storage_set args")
 			}
 
 			val, err := unwrapStarlarkValue(value)
