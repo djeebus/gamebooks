@@ -41,15 +41,29 @@ var linksKey = parser.NewContextKey()
 
 func (l linkTrackingParser) Parse(parent ast.Node, block text.Reader, pc parser.Context) ast.Node {
 	result := l.wrapped.Parse(parent, block, pc)
-	if l, ok := result.(*ast.Link); ok {
-		stored, ok := pc.Get(linksKey).([]string)
-		if !ok {
-			stored = []string{}
-		}
-		stored = append(stored, string(l.Destination))
-		pc.Set(linksKey, stored)
-		l.Destination = append([]byte("?goto="), l.Destination...)
+	link, ok := result.(*ast.Link)
+	if !ok {
+		return result
 	}
+
+	stored, ok := pc.Get(linksKey).([]string)
+	if !ok {
+		stored = []string{}
+	}
+
+	destination := string(link.Destination)
+	if len(destination) == 0 {
+		return result
+	}
+
+	if destination[0] == '!' {
+		link.Destination = append([]byte("?cmd="), link.Destination[1:]...)
+		return link
+	}
+
+	stored = append(stored, destination)
+	pc.Set(linksKey, stored)
+	link.Destination = append([]byte("?goto="), link.Destination...)
 
 	return result
 }

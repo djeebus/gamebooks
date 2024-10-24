@@ -19,7 +19,7 @@ func (p *Executor) ExecuteBook(book *models.Book, storage storage.Storage) (mode
 	return nil, fmt.Errorf("not implemented: %q", book.Path)
 }
 
-func (p *Executor) ExecutePage(book *models.Book, page *models.Page, storage storage.Storage) (*models.PageResult, error) {
+func (p *Executor) ExecutePage(book *models.Book, page *models.Page, storage storage.Storage) (models.PageResult, error) {
 	switch filepath.Ext(page.Path) {
 	case ".star":
 		results, err := processPageStarlarkScript(page.Path, book, page, storage)

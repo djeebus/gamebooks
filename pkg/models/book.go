@@ -9,5 +9,5 @@ type BookResult interface {
 	GetName() string
 	GetStartPage() string
 	OnStart() error
-	OnPage(*Page, *PageResult) error
+	OnPage(*Page, PageResult) error
 }

@@ -15,6 +15,7 @@ import (
 	meta "github.com/yuin/goldmark-meta"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/renderer/html"
 	"html/template"
 	"net/http"
 	"regexp"
@@ -46,6 +47,9 @@ func newViews(game bookRepo.Game, storage storage.Storage, executor *executor.Ex
 				extension.NewTable(),
 				meta.Meta,
 				NewLinkTracker(),
+			),
+			goldmark.WithRendererOptions(
+				html.WithUnsafe(),
 			),
 		),
 	}, nil
@@ -116,13 +120,23 @@ func (v *views) gameView(c echo.Context) error {
 		return errors.Wrap(err, "failed to execute on_page handler")
 	}
 
-	if pageResults.ClearHistory {
+	if pageResults.ClearHistory() {
 		playerStorage.Remove(previousPagesKey)
 	}
 
 	viewModel, links, err := v.generatePageViewModel(pageResults, bookResults, page, playerStorage)
 	if err != nil {
 		return errors.Wrapf(err, "failed to generate viewModel bookID=%s/pageID=%s", bookID, pageID)
+	}
+
+	if command := c.QueryParam("cmd"); command != "" {
+		nextPageID, err := pageResults.OnCommand(command)
+		if err == nil {
+			return errors.Wrap(err, "failed to execute command")
+		}
+		if nextPageID != "" {
+			return v.navigateThroughLink(c, playerStorage, nextPageID)
+		}
 	}
 
 	if nextPageID := c.QueryParam("goto"); nextPageID != "" {
@@ -180,16 +194,16 @@ func (v *views) buildBreadcrumbs(s storage.Storage) string {
 }
 
 func (v *views) generatePageViewModel(
-	results *models.PageResult, book models.BookResult, page *models.Page, s storage.Storage,
+	results models.PageResult, book models.BookResult, page *models.Page, s storage.Storage,
 ) (pageModel, []string, error) {
-	markdown := results.Markdown
-	if results.Title != "" {
-		markdown = fmt.Sprintf("# %s (%s)\n%s", results.Title, page.PageID, markdown)
+	markdown := results.Markdown()
+	if t := results.Title(); t != "" {
+		markdown = fmt.Sprintf("# %s (%s)\n%s", t, page.PageID, markdown)
 	} else {
 		markdown = addPageIDtoFirstHeader(markdown, page.PageID)
 	}
 
-	if results.AllowReturn {
+	if results.AllowReturn() {
 		markdown = fmt.Sprintf("%s\n\n[go back](__previous__)", markdown)
 	}
 
