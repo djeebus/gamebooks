@@ -6,6 +6,8 @@ type Page struct {
 }
 
 type PageResult struct {
-	Markdown string
-	Title    string
+	AllowReturn  bool
+	ClearHistory bool
+	Markdown     string
+	Title        string
 }

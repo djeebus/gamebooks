@@ -29,7 +29,11 @@ func (s starlarkBookResult) GetStartPage() string {
 }
 
 func (s starlarkBookResult) asString(key string) string {
-	val, ok := s.result[key]
+	return asString(s.result, key)
+}
+
+func asString(result starlark.StringDict, key string) string {
+	val, ok := result[key]
 	if !ok {
 		log.Error().Str("key", key).Msg("key not found")
 		return ""
@@ -52,10 +56,14 @@ func (s starlarkBookResult) OnStart() error {
 	return nil
 }
 
-func (s starlarkBookResult) OnPage(result *models.PageResult) error {
+func (s starlarkBookResult) OnPage(page *models.Page, result *models.PageResult) error {
 	var err error
 
 	input := starlark.NewDict(2)
+
+	if err = input.SetKey(starlark.String("page_id"), starlark.String(page.PageID)); err != nil {
+		return errors.Wrap(err, "failed to set page_id")
+	}
 
 	if err = input.SetKey(starlark.String("title"), starlark.String(result.Title)); err != nil {
 		return errors.Wrap(err, "failed to set title")
@@ -69,15 +77,47 @@ func (s starlarkBookResult) OnPage(result *models.PageResult) error {
 		return errors.Wrap(err, "failed to call on_page")
 	}
 
-	if err = setStringFromDictKey(input, "title", &result.Title); err != nil {
-		return errors.Wrap(err, "failed to set title")
+	if val, ok, err := getFromDict[starlark.String](input, "title"); err != nil {
+		return errors.Wrap(err, "failed to get title")
+	} else if !ok {
+		return errors.Wrap(err, "missing required key 'title'")
+	} else {
+		result.Title = string(val)
 	}
 
-	if err = setStringFromDictKey(input, "markdown", &result.Markdown); err != nil {
-		return errors.Wrap(err, "failed to set markdown")
+	if val, ok, err := getFromDict[starlark.String](input, "markdown"); err != nil {
+		return errors.Wrap(err, "failed to get markdown")
+	} else if !ok {
+		return errors.Wrap(err, "missing required key 'markdown'")
+	} else {
+		result.Markdown = string(val)
+	}
+
+	if val, ok, err := getFromDict[starlark.Bool](input, "allow_return"); err != nil {
+		return errors.Wrap(err, "failed to get allow_return")
+	} else if ok {
+		result.AllowReturn = bool(val)
 	}
 
 	return nil
+}
+
+func getFromDict[T starlark.Value](input *starlark.Dict, key string) (T, bool, error) {
+	var t T
+
+	value, ok, err := input.Get(starlark.String(key))
+	if err != nil {
+		return t, false, errors.Wrap(err, "failed to get key")
+	}
+	if !ok {
+		return t, false, nil
+	}
+	t, ok = value.(T)
+	if !ok {
+		return t, false, fmt.Errorf("expected starlark.String, got %T", value)
+	}
+
+	return t, true, nil
 }
 
 func setStringFromDictKey(input *starlark.Dict, key string, destination *string) error {
@@ -105,24 +145,43 @@ func processBookStarlarkScript(path string, book *models.Book, storage storage.S
 
 	predeclared := starlarkPredeclared(storage)
 
-	opts := &syntax.FileOptions{
-		Set:               false,
-		While:             false,
-		TopLevelControl:   false,
-		GlobalReassign:    false,
-		LoadBindsGlobally: false,
-		Recursion:         false,
-	}
+	opts := syntax.FileOptions{}
 
-	t.Load = func(thread *starlark.Thread, module string) (starlark.StringDict, error) {
-		modulePath := filepath.Join(rootDir, module)
-		return starlark.ExecFileOptions(opts, &t, modulePath, nil, predeclared)
-	}
+	t.Load = starlarkLoad(rootDir, &opts, predeclared)
 
-	result, err := starlark.ExecFileOptions(opts, &t, path, nil, predeclared)
+	result, err := starlark.ExecFileOptions(&opts, &t, path, nil, predeclared)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to exec starlark book script")
 	}
 
 	return newStarlarkBookResult(&t, result), nil
+}
+
+func starlarkLoad(rootDir string, opts *syntax.FileOptions, predeclared starlark.StringDict) func(thread *starlark.Thread, module string) (starlark.StringDict, error) {
+	return func(t *starlark.Thread, module string) (starlark.StringDict, error) {
+		modulePath := filepath.Join(rootDir, module)
+		return starlark.ExecFileOptions(opts, t, modulePath, nil, predeclared)
+	}
+}
+
+func processPageStarlarkScript(path string, book *models.Book, page *models.Page, s storage.Storage) (*models.PageResult, error) {
+	var t starlark.Thread
+
+	rootDir := filepath.Dir(path)
+
+	predeclared := starlarkPredeclared(s)
+
+	opts := syntax.FileOptions{}
+
+	t.Load = starlarkLoad(rootDir, &opts, predeclared)
+
+	result, err := starlark.ExecFileOptions(&opts, &t, path, nil, predeclared)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to exec starlark page script")
+	}
+
+	return &models.PageResult{
+		Markdown: asString(result, "markdown"),
+		Title:    asString(result, "title"),
+	}, nil
 }

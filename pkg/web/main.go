@@ -28,7 +28,6 @@ func New(g bookRepo.Game, storage storage.Storage, executor *executor.Executor, 
 	}
 
 	e.GET("/", v.gameView)
-	e.POST("/", v.gameNext)
 
 	return e, nil
 }

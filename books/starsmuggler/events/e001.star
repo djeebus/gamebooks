@@ -1,6 +1,7 @@
-local _M = {
-    title = "The Adventure Begins",
-    markdown = string.format([[
+load("../lib/bank.star", "cash_get")
+
+title = "The Adventure Begins"
+markdown = """
 Due to bad luck and loan sharks, your financial situation is
 getting very desperate. Your small merchant starship never
 seems to have a full cargo hold, but operating costs are high.
@@ -30,7 +31,4 @@ of the Pavonis sector, at [the spaceport](r205o). This
 morning you decide to take up a life of smuggling. You check
 over your starship guns and personal sidearm, and prepare to
 find profit through any means. [Available activities](r203).
-    ]], initial_cash)
-}
-
-return _M
+""" % cash_get()

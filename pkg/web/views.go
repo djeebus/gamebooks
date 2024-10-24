@@ -10,17 +10,20 @@ import (
 	"gamebooks/pkg/storage"
 	"github.com/labstack/echo/v4"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"github.com/yuin/goldmark"
 	meta "github.com/yuin/goldmark-meta"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"html/template"
 	"net/http"
+	"regexp"
 )
 
 const (
-	keyBookID = "--book-id--"
-	keyPageID = "--page-id--"
+	keyBookID        = "--book-id--"
+	keyPageID        = "--page-id--"
+	previousPagesKey = "--previous-pages--"
 )
 
 //go:embed templates/*
@@ -95,6 +98,8 @@ func (v *views) gameView(c echo.Context) error {
 	pageID := storage.GetString(playerStorage, keyPageID)
 	if pageID == "" {
 		pageID = bookResults.GetStartPage()
+		playerStorage.Set(keyPageID, pageID)
+		storage.Push[string](playerStorage, previousPagesKey, pageID)
 	}
 
 	page, err := v.game.GetPage(bookID, pageID)
@@ -104,29 +109,53 @@ func (v *views) gameView(c echo.Context) error {
 
 	pageResults, err := v.executor.ExecutePage(book, page, playerStorage)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get page bookID=%s/pageID=%s", bookID, pageID)
+		return errors.Wrapf(err, "failed to execute page bookID=%s/pageID=%s", bookID, pageID)
 	}
 
-	if err = bookResults.OnPage(pageResults); err != nil {
+	if err = bookResults.OnPage(page, pageResults); err != nil {
 		return errors.Wrap(err, "failed to execute on_page handler")
 	}
 
-	viewModel, links, err := v.generatePageViewModel(pageResults, bookResults, page)
+	if pageResults.ClearHistory {
+		playerStorage.Remove(previousPagesKey)
+	}
+
+	viewModel, links, err := v.generatePageViewModel(pageResults, bookResults, page, playerStorage)
 	if err != nil {
 		return errors.Wrapf(err, "failed to generate viewModel bookID=%s/pageID=%s", bookID, pageID)
 	}
 
 	if nextPageID := c.QueryParam("goto"); nextPageID != "" {
+		if nextPageID == "__previous__" {
+			return v.navigateToPrevious(c, playerStorage)
+		}
+
 		for _, link := range links {
 			if nextPageID == link {
-				playerStorage.Set(keyPageID, nextPageID)
-				return c.Redirect(http.StatusTemporaryRedirect, "/")
+				return v.navigateThroughLink(c, playerStorage, nextPageID)
 			}
 		}
 		return c.String(http.StatusBadRequest, "invalid next page ID: "+nextPageID)
 	}
 
 	return v.renderTemplate(c, "page.gohtml", viewModel)
+}
+
+func (v *views) navigateThroughLink(c echo.Context, s storage.Storage, pageID string) error {
+	storage.Push[string](s, previousPagesKey, pageID)
+	s.Set(keyPageID, pageID)
+	log.Info().Str("page_id", pageID).Msg("navigating forward")
+	return c.Redirect(http.StatusTemporaryRedirect, "/")
+
+}
+
+func (v *views) navigateToPrevious(c echo.Context, s storage.Storage) error {
+	storage.Pop[string](s, previousPagesKey) // throw away current page id
+	prevPageID := storage.Peek[string](s, previousPagesKey)
+
+	s.Set(keyPageID, prevPageID)
+	log.Info().Str("page_id", prevPageID).Msg("navigating previous")
+	return c.Redirect(http.StatusTemporaryRedirect, "/")
 }
 
 type pageModel struct {
@@ -136,11 +165,37 @@ type pageModel struct {
 	HTML  template.HTML
 }
 
-func (v *views) generatePageViewModel(results *models.PageResult, book models.BookResult, page *models.Page) (pageModel, []string, error) {
+func (v *views) buildBreadcrumbs(s storage.Storage) string {
+	pageIDs := storage.GetSlice[string](s, previousPagesKey)
+	if len(pageIDs) == 0 {
+		return ""
+	}
+
+	var result string
+	for _, pageID := range pageIDs {
+		result += fmt.Sprintf("[%s](%s) > ", pageID, pageID)
+	}
+
+	return result
+}
+
+func (v *views) generatePageViewModel(
+	results *models.PageResult, book models.BookResult, page *models.Page, s storage.Storage,
+) (pageModel, []string, error) {
 	markdown := results.Markdown
 	if results.Title != "" {
-		markdown = fmt.Sprintf("# %s\n%s", results.Title, markdown)
+		markdown = fmt.Sprintf("# %s (%s)\n%s", results.Title, page.PageID, markdown)
+	} else {
+		markdown = addPageIDtoFirstHeader(markdown, page.PageID)
 	}
+
+	if results.AllowReturn {
+		markdown = fmt.Sprintf("%s\n\n[go back](__previous__)", markdown)
+	}
+
+	markdown = v.buildBreadcrumbs(s) + "\n\n" + markdown
+
+	markdown += "\n\n\npage id: " + page.PageID
 
 	context := parser.NewContext()
 
@@ -156,15 +211,6 @@ func (v *views) generatePageViewModel(results *models.PageResult, book models.Bo
 		Page: page,
 	}
 
-	metadata := meta.Get(context)
-	if titleIface, ok := metadata["title"]; ok {
-		title, ok := titleIface.(string)
-		if ok {
-			text = "<h1>" + title + "</h1>\n" + text
-			result.Title = title
-		}
-	}
-
 	links := getLinksFromContext(context)
 
 	result.Title = book.GetName()
@@ -173,6 +219,10 @@ func (v *views) generatePageViewModel(results *models.PageResult, book models.Bo
 	return result, links, nil
 }
 
-func (v *views) gameNext(c echo.Context) error {
-	panic("implement me")
+var headerRegexp = regexp.MustCompile(`(?m)^# .*$`)
+
+func addPageIDtoFirstHeader(markdown string, pageID string) string {
+	return headerRegexp.ReplaceAllStringFunc(markdown, func(s string) string {
+		return fmt.Sprintf("%s (%s)", s, pageID)
+	})
 }
