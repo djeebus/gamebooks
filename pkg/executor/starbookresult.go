@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"fmt"
 	"gamebooks/pkg/models"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -67,6 +68,12 @@ func (s starlarkBookResult) OnPage(page *models.Page, result models.PageResult) 
 
 	input := starlark.NewDict(2)
 
+	if value := result.Get("on_command"); value != nil {
+		if err = input.SetKey(starlark.String("on_command"), starlark.Bool(true)); err != nil {
+			return errors.Wrap(err, "failed to add on_command flag")
+		}
+	}
+
 	if err = input.SetKey(starlark.String("page_id"), starlark.String(page.PageID)); err != nil {
 		return errors.Wrap(err, "failed to set page_id")
 	}
@@ -83,7 +90,21 @@ func (s starlarkBookResult) OnPage(page *models.Page, result models.PageResult) 
 		return errors.Wrap(err, "failed to call on_page")
 	}
 
-	result.UpdateResults(input)
+	unwrapped, err := unwrapStarlarkValue(s.t, input)
+	if err != nil {
+		return errors.Wrap(err, "failed to unwrap input")
+	}
+
+	unwrappedMap, ok := unwrapped.(map[string]any)
+	if !ok {
+		return fmt.Errorf("could not cast %T to map[string]any", unwrapped)
+	}
+
+	if value, ok := unwrappedMap["on_command"].(bool); ok && value {
+		delete(unwrappedMap, "on_command")
+	}
+
+	result.UpdateResults(unwrappedMap)
 
 	return nil
 }

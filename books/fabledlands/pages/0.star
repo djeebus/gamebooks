@@ -1,15 +1,44 @@
-load("../lib/character.star", "character_render", "character_select")
+load("../lib/abilities.star", ability_keys="keys", ability_set="set")
+load("../lib/bank.star", bank_deposit="deposit")
+load("../lib/character.star", "defense_set", "name_set", "profession_set", "rank_set")
+load("../lib/stamina.star", stamina_set="set")
 
 title = "Starting characters"
 
-_common = {
-    "rank": 1,
-    "stamina": 9,
-    "money": 16,
-}
+
+def character_render(c_id, c):
+    return """
+    
+## [%s](!%s)
+
+|   |    |
+|---|----|
+| Profession | %s |
+| Defence | %s |
+|     |     |
+| Charisma | %d |
+| Combat | %d |
+| Magic | %d |
+| Sanctity | %d |
+| Scouting | %d |
+| Thievery | %d |
+    """ % (
+        c["name"],
+        c_id,
+        c["profession"],
+        c["defence"],
+        c["charisma"],
+        c["combat"],
+        c["magic"],
+        c["sanctity"],
+        c["scouting"],
+        c["thievery"],
+    )
+
 
 _characters = {
     "liana": dict(
+        name="Liana The Swift",
         profession="Wayfarer",
         defence=7,
         charisma=2,
@@ -23,9 +52,9 @@ _characters = {
             "leather jerkin (Defence +1)",
             "map",
         ],
-        **_common,
     ),
     "andriel": dict(
+        name="Andriel The Hammer",
         profession="Warrior",
         defence=8,
         charisma=3,
@@ -39,9 +68,9 @@ _characters = {
             "leather jerkin (Defence +1)",
             "map",
         ],
-        **_common,
     ),
     "chalor": dict(
+        name="Chalor The Exiled One",
         profession="Mage",
         defence=4,
         charisma=2,
@@ -55,9 +84,9 @@ _characters = {
             "leather jerkin (Defence +1)",
             "map",
         ],
-        **_common,
     ),
     "marana": dict(
+        name="Marana Fireheart",
         profession="Rogue",
         defence=6,
         charisma=5,
@@ -71,7 +100,6 @@ _characters = {
             "leather jerkin (Defence +1)",
             "map",
         ],
-        **_common,
     ),
 }
 
@@ -79,32 +107,23 @@ markdown = """
 You can create your own character, or pick one from the following.
 Transfer the details of the character you have chosen to the Adventure Sheet.
 
-## [Liana The Swift](!liana)
-
-%s
- 
-## [Andriel The Hammer](!andriel)
-
 %s
 
-## [Chalor The Exiled One](!chalor)
-
-%s
-
-## [Marana Fireheart](!marana)
-
-%s
- 
-""" % (
-    character_render(_characters["liana"]),
-    character_render(_characters["andriel"]),
-    character_render(_characters["chalor"]),
-    character_render(_characters["marana"]),
-
-)
+""" % "\n\n".join([character_render(key, value) for (key, value) in _characters.items()])
 
 can_submit = True
 
+
 def on_command(name):
-    character_select(_characters[name])
-    return "start2"
+    character = _characters[name]
+    for key in ability_keys:
+        ability_set(key, character[key])
+
+    name_set(character["name"])
+    profession_set(character["profession"])
+    rank_set(1)
+    defense_set(character["defence"])
+    bank_deposit(10)
+    stamina_set(10)
+
+    return "1"

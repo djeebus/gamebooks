@@ -44,8 +44,8 @@ func newViews(game bookRepo.Game, storage storage.Storage, executor *executor.Ex
 		executor: executor,
 		markdown: goldmark.New(
 			goldmark.WithExtensions(
+				meta.New(),
 				extension.NewTable(),
-				meta.Meta,
 				NewLinkTracker(),
 			),
 			goldmark.WithRendererOptions(
@@ -120,7 +120,8 @@ func (v *views) gameView(c echo.Context) error {
 		return errors.Wrap(err, "failed to execute on_page handler")
 	}
 
-	if pageResults.ClearHistory() {
+	value := pageResults.Get("clear_history")
+	if clearHistory, ok := value.(bool); ok && clearHistory {
 		playerStorage.Remove(previousPagesKey)
 	}
 
@@ -131,12 +132,14 @@ func (v *views) gameView(c echo.Context) error {
 
 	if command := c.QueryParam("cmd"); command != "" {
 		nextPageID, err := pageResults.OnCommand(command)
-		if err == nil {
+		if err != nil {
 			return errors.Wrap(err, "failed to execute command")
 		}
-		if nextPageID != "" {
-			return v.navigateThroughLink(c, playerStorage, nextPageID)
+		if nextPageID == "" {
+			nextPageID = pageID
 		}
+
+		return v.navigateThroughLink(c, playerStorage, nextPageID)
 	}
 
 	if nextPageID := c.QueryParam("goto"); nextPageID != "" {
@@ -197,13 +200,15 @@ func (v *views) generatePageViewModel(
 	results models.PageResult, book models.BookResult, page *models.Page, s storage.Storage,
 ) (pageModel, []string, error) {
 	markdown := results.Markdown()
+
 	if t := results.Title(); t != "" {
 		markdown = fmt.Sprintf("# %s (%s)\n%s", t, page.PageID, markdown)
 	} else {
 		markdown = addPageIDtoFirstHeader(markdown, page.PageID)
 	}
 
-	if results.AllowReturn() {
+	pages := storage.GetSlice[string](s, previousPagesKey)
+	if len(pages) > 1 {
 		markdown = fmt.Sprintf("%s\n\n[go back](__previous__)", markdown)
 	}
 

@@ -8,69 +8,66 @@ import (
 )
 
 type starlarkPageResult struct {
-	result starlark.StringDict
+	t      *starlark.Thread
+	result map[string]any
 }
 
-func (s starlarkPageResult) UpdateResults(dict *starlark.Dict) {
-	for _, key := range dict.Keys() {
-		val, ok, err := dict.Get(key)
-		if err != nil && ok {
-			keystr, ok := val.(starlark.String)
-			if ok {
-				s.result[string(keystr)] = val
-			}
-		}
-	}
-}
-
-func newStarlarkPageResult(result starlark.StringDict) *starlarkPageResult {
+func newStarlarkPageResult(t *starlark.Thread, result map[string]any) *starlarkPageResult {
 	return &starlarkPageResult{
+		t:      t,
 		result: result,
 	}
 }
 
-func (s starlarkPageResult) AllowReturn() bool {
-	val, ok, err := getFromDict[starlark.Bool](s.result, "allow_return")
-	if err == nil && ok {
-		return val
+func (s starlarkPageResult) UpdateResults(dict map[string]any) {
+	for key, val := range dict {
+		s.result[key] = val
 	}
-	return false
-}
-
-func (s starlarkPageResult) ClearHistory() bool {
-	//TODO implement me
-	panic("implement me")
 }
 
 func (s starlarkPageResult) Markdown() string {
-	return asString(s.result, "markdown")
+	val, ok := s.result["markdown"].(string)
+	if !ok {
+		panic("missing required field: 'markdown'")
+	}
+
+	return val
 }
 
 func (s starlarkPageResult) Title() string {
-	return asString(s.result, "title")
+	val, ok := s.result["title"].(string)
+	if !ok {
+		return ""
+	}
+
+	return val
 }
 
 func (s starlarkPageResult) OnCommand(command string) (string, error) {
-	//TODO implement me
-	panic("implement me")
+	fn, ok := s.result["on_command"].(models.Callable)
+	if !ok {
+		return "", nil
+	}
+
+	result, err := fn([]any{command}, nil)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to call on_command")
+	}
+
+	if result == nil {
+		return "", nil
+	}
+
+	sval, ok := result.(string)
+	if !ok {
+		return "", fmt.Errorf("expected a string result, got %T", result)
+	}
+
+	return sval, nil
+}
+
+func (s starlarkPageResult) Get(key string) any {
+	return s.result[key]
 }
 
 var _ models.PageResult = &starlarkPageResult{}
-
-func getFromDict[T starlark.Value](input *starlark.Dict, key string) (T, bool, error) {
-	var t T
-
-	value, ok, err := input.Get(starlark.String(key))
-	if err != nil {
-		return t, false, errors.Wrap(err, "failed to get key")
-	}
-	if !ok {
-		return t, false, nil
-	}
-	t, ok = value.(T)
-	if !ok {
-		return t, false, fmt.Errorf("expected starlark.String, got %T", value)
-	}
-
-	return t, true, nil
-}

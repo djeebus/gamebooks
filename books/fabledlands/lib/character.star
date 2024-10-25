@@ -1,34 +1,31 @@
-character_key = "--character--"
+name_key = "--name--"
 
-def character_render(c):
-    return """
-|   |    |
-|---|----|
-| Rank | %s |
-| Profession | %s |
-| Stamina | %s |
-| Defence | %s |
-| Money | %d shards |
-|     |     |
-| Charisma | %d |
-| Combat | %d |
-| Magic | %d |
-| Sanctity | %d |
-| Scouting | %d |
-| Thievery | %d |
-    """ % (
-        c["rank"],
-        c["profession"],
-        c["stamina"],
-        c["defence"],
-        c["money"],
-        c["charisma"],
-        c["combat"],
-        c["magic"],
-        c["sanctity"],
-        c["scouting"],
-        c["thievery"],
-)
+def name_get():
+    return storage_get(name_key)
 
-def character_select(c):
-    storage_set(character_key, c)
+def name_set(value):
+    storage_set(name_key, value)
+
+profession_key = "--profession--"
+
+def profession_get():
+    return storage_get(profession_key)
+
+def profession_set(value):
+    storage_set(profession_key, value)
+
+rank_key = '--rank--'
+
+def rank_get():
+    return storage_get(rank_key)
+
+def rank_set(value):
+    storage_set(rank_key, value)
+
+defense_key = '--defense--'
+
+def defense_get():
+    return storage_get(defense_key)
+
+def defense_set(value):
+    storage_set(defense_key, value)

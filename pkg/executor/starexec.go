@@ -51,5 +51,10 @@ func processPageStarlarkScript(path string, book *models.Book, page *models.Page
 		return nil, errors.Wrap(err, "failed to exec starlark page script")
 	}
 
-	return newStarlarkPageResult(result), nil
+	unwrapped, err := unwrapStarlarkDict(&t, result)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to unwrap starlark value")
+	}
+
+	return newStarlarkPageResult(&t, unwrapped), nil
 }
