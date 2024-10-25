@@ -17,9 +17,14 @@ def set(value):
     return storage_set(health_key, value)
 
 
-def add(value):
+def stamina_add(value):
     health = get()
+    health += value
+
+    if health <= 0:
+        fail("you are dead. sad times.")
+
     max_stamina = get_max()
     if health < max_stamina:
-        health += value
+        health = max_stamina
         set(health)

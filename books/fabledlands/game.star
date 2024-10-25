@@ -1,38 +1,57 @@
 load("./lib/abilities.star", "ability_get")
 load("./lib/bank.star", bank_balance="balance")
 load("./lib/character.star", "defense_get", "name_get", "profession_get", "rank_get")
-load("./lib/codewords.star", "codeword_assert")
+load("./lib/codewords.star", "codeword_assert", "codeword_all")
 load("./lib/god.star", "god_get")
 load("./lib/stamina.star", stamina_get="get", stamina_get_max="get_max")
 
 start_page = "0"
 
-def on_command(command):
-    parts = command.split('!')
-    cmd = parts[0]
-    args = parts[1:]
-
-    if cmd == 'roll':
-        return on_roll(*args)
-
-    if cmd == 'require-codeword':
-        return require_codework(*args)
-
-    fail(cmd, args)
-
-
-def require_codework(codeword, page_id):
+def _require_codeword(codeword, page_id):
     codeword_assert(codeword)
     return page_id
 
 
-def on_roll(ability, difficulty, success_page_id, fail_page_id):
+def _make_roll(ability, difficulty, success_page_id, fail_page_id):
     dice = dice_roll(2, 6)
     ability = ability_get(ability)
     if dice + ability > int(difficulty):
         return success_page_id
     else:
         return fail_page_id
+
+
+_base_commands = {
+    'require-codeword': _require_codeword,
+    'roll': _make_roll,
+}
+
+def on_command(command):
+    parts = command.split('!')
+    cmd = parts[0]
+    args = parts[1:]
+
+    fn = _base_commands.get(cmd)
+    if fn:
+        return fn(*args)
+
+    fail(cmd, args)
+
+
+def _codewords():
+    result = ""
+    col_count = 4
+    codewords = codeword_all()
+    for index, (codeword, value) in enumerate(codewords.items()):
+        if index % col_count == 0:
+            result += "<tr>"
+        result += "<td><input type='checkbox' disabled %s />%s</td>" % (
+            "checked" if value else "", codeword,
+        )
+        if index % col_count == col_count-1:
+            result += "</tr>"
+
+    return result
 
 
 def on_page(page):
@@ -46,7 +65,7 @@ def on_page(page):
     if page["page_id"] != start_page:
         markdown = page["markdown"]
 
-        table = """
+        header = """
 <table>
     <tbody>
         <tr>
@@ -130,6 +149,14 @@ def on_page(page):
                     </thead>
                     <tbody>%s</tbody>
                 </table>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Codewords</th>
+                        </tr>
+                    </thead>
+                    <tbody>%s</tbody>
+                </table>
             </td>
         </tr>
         <tr>
@@ -208,11 +235,12 @@ def on_page(page):
             ability_get('thievery'),
             stamina_get_max(),
             stamina_get(),
-            "", # inventory
+            "", # possessions
+            _codewords(), # codewords
             "", # resurrection
             bank_balance(),
             "", # title and honours
             "", # blessings
         )
 
-        page["markdown"] = "%s\n\n%s" % (table, markdown)
+        page["markdown"] = "%s\n\n%s" % (header, markdown)

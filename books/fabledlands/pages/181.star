@@ -1,5 +1,5 @@
 load("../lib/bank.star", bank_withdraw="withdraw")
-load("../lib/stamina.star", stamina_add="add")
+load("../lib/stamina.star", "stamina_add")
 
 markdown = """
 The Green Man Inn costs you [1 Shard a day](!rest). Each day you

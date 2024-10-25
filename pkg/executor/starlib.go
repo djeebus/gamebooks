@@ -196,6 +196,26 @@ func makeStarlarkValue(value interface{}) (starlark.Value, error) {
 		return starlark.MakeInt(v), nil
 	case int64:
 		return starlark.MakeInt64(v), nil
+	case map[string]interface{}:
+		var result starlark.Dict
+		for key, value := range v {
+			skey, err := makeStarlarkValue(key)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to wrap key")
+			}
+
+			svalue, err := makeStarlarkValue(value)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to wrap value")
+			}
+
+			if err = result.SetKey(skey, svalue); err != nil {
+				return nil, errors.Wrapf(err, "failed to set key %q", key)
+			}
+		}
+		return &result, nil
+	case []any:
+		return makeStarlarkValueList(v)
 	}
 
 	return nil, fmt.Errorf("cannot convert %T to starlark value", value)
@@ -219,7 +239,7 @@ func makeStarlarkKwargsTupleSlice(value map[string]any) ([]starlark.Tuple, error
 	return slice, nil
 }
 
-func makeStarlarkValueList(value []any) ([]starlark.Value, error) {
+func makeStarlarkValueList(value []any) (starlark.Tuple, error) {
 	var results []starlark.Value
 	for _, item := range value {
 		wrapped, err := makeStarlarkValue(item)
