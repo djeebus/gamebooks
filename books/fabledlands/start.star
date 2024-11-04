@@ -1,9 +1,7 @@
-load("../lib/abilities.star", ability_keys="keys", ability_set="set")
-load("../lib/bank.star", bank_deposit="deposit")
-load("../lib/character.star", "defense_set", "name_set", "profession_set", "rank_set")
-load("../lib/stamina.star", stamina_set="set")
-
-title = "Starting characters"
+load("./lib/abilities.star", "ability_set", ability_keys="keys")
+load("./lib/bank.star", "bank_deposit")
+load("./lib/character.star", "defense_set", "name_set", "profession_set", "rank_set")
+load("./lib/stamina.star", "stamina_set")
 
 
 def character_render(c_id, c):
@@ -104,6 +102,8 @@ _characters = {
 }
 
 markdown = """
+# Starting characters
+
 You can create your own character, or pick one from the following.
 Transfer the details of the character you have chosen to the Adventure Sheet.
 
@@ -126,4 +126,4 @@ def on_command(name):
     bank_deposit(10)
     stamina_set(10)
 
-    return "1"
+    return "wartornkingdom/1"

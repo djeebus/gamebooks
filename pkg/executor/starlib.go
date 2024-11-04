@@ -9,7 +9,14 @@ import (
 	"go.starlark.net/starlark"
 )
 
-func starlarkPredeclared(s storage.Storage) starlark.StringDict {
+var ErrCannotCallPageFunction = errors.New("cannot call page function in this context")
+
+func starlarkPredeclared(s storage.Storage, page *models.Page) starlark.StringDict {
+	var pageStorage storage.Storage
+	if page != nil {
+		pageStorage = storage.NamespacedStorage(s, page.PageID)
+	}
+
 	return starlark.StringDict{
 		"dice_roll": starlark.NewBuiltin("dice_roll", func(t *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
 			var count, size int
@@ -36,10 +43,53 @@ func starlarkPredeclared(s storage.Storage) starlark.StringDict {
 				return nil, errors.Wrap(err, "failed to parse storage_get args")
 			}
 
-			value := s.Get(key)
+			value, err := s.Get(key)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to get value")
+			}
 			return makeStarlarkValue(value)
 		}),
-		"storage_push": starlark.NewBuiltin("storage_push", func(t *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+		"storage_page_get": starlark.NewBuiltin("storage_page_get", func(thread *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+			var key string
+
+			if err := starlark.UnpackArgs(fn.Name(),
+				args, kwargs,
+				"key", &key,
+			); err != nil {
+				return nil, errors.Wrap(err, "failed to parse storage_get args")
+			}
+
+			if pageStorage == nil {
+				return nil, ErrCannotCallPageFunction
+			}
+
+			value, err := pageStorage.Get(key)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to get value")
+			}
+			return makeStarlarkValue(value)
+		}),
+		"storage_page_remove": starlark.NewBuiltin("storage_page_remove", func(thread *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+			var key string
+
+			if err := starlark.UnpackArgs(fn.Name(),
+				args, kwargs,
+				"key", &key,
+			); err != nil {
+				return nil, errors.Wrap(err, "failed to parse storage_page_remove args")
+			}
+
+			if pageStorage == nil {
+				return nil, ErrCannotCallPageFunction
+			}
+
+			if err := pageStorage.Remove(key); err != nil {
+				return nil, errors.Wrap(err, "failed to remove key")
+			}
+
+			return starlark.None, nil
+		}),
+		"storage_page_set": starlark.NewBuiltin("storage_page_set", func(t *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
 			var key string
 			var value starlark.Value
 
@@ -48,7 +98,7 @@ func starlarkPredeclared(s storage.Storage) starlark.StringDict {
 				"key", &key,
 				"value", &value,
 			); err != nil {
-				return nil, errors.Wrap(err, "failed to parse storage_push args")
+				return nil, errors.Wrap(err, "failed to parse storage_page_set args")
 			}
 
 			val, err := unwrapStarlarkValue(t, value)
@@ -56,7 +106,13 @@ func starlarkPredeclared(s storage.Storage) starlark.StringDict {
 				return nil, errors.Wrap(err, "failed to unwrap starlark value")
 			}
 
-			storage.Push(s, key, val)
+			if pageStorage == nil {
+				return nil, ErrCannotCallPageFunction
+			}
+
+			if err = pageStorage.Set(key, val); err != nil {
+				return nil, errors.Wrap(err, "failed to set key")
+			}
 			return starlark.None, nil
 		}),
 		"storage_remove": starlark.NewBuiltin("storage_remove", func(thread *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
@@ -69,7 +125,47 @@ func starlarkPredeclared(s storage.Storage) starlark.StringDict {
 				return nil, errors.Wrap(err, "failed to parse storage_remove args")
 			}
 
-			s.Remove(key)
+			if err := s.Remove(key); err != nil {
+				return nil, errors.Wrap(err, "failed to remove key")
+			}
+
+			return starlark.None, nil
+		}),
+		"storage_pop": starlark.NewBuiltin("storage_pop", func(t *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+			var key string
+
+			if err := starlark.UnpackArgs(fn.Name(),
+				args, kwargs,
+				"key", &key,
+			); err != nil {
+				return nil, errors.Wrap(err, "failed to parse storage_set args")
+			}
+
+			if _, err := storage.Pop[any](s, key); err != nil {
+				return nil, errors.Wrap(err, "failed to set key")
+			}
+			return starlark.None, nil
+		}),
+		"storage_push": starlark.NewBuiltin("storage_push", func(t *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+			var key string
+			var value starlark.Value
+
+			if err := starlark.UnpackArgs(fn.Name(),
+				args, kwargs,
+				"key", &key,
+				"value", &value,
+			); err != nil {
+				return nil, errors.Wrap(err, "failed to parse storage_set args")
+			}
+
+			val, err := unwrapStarlarkValue(t, value)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to unwrap starlark value")
+			}
+
+			if err = storage.Push(s, key, val); err != nil {
+				return nil, errors.Wrap(err, "failed to set key")
+			}
 			return starlark.None, nil
 		}),
 		"storage_set": starlark.NewBuiltin("storage_set", func(t *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
@@ -89,7 +185,9 @@ func starlarkPredeclared(s storage.Storage) starlark.StringDict {
 				return nil, errors.Wrap(err, "failed to unwrap starlark value")
 			}
 
-			s.Set(key, val)
+			if err = s.Set(key, val); err != nil {
+				return nil, errors.Wrap(err, "failed to set key")
+			}
 			return starlark.None, nil
 		}),
 	}
@@ -153,7 +251,8 @@ func unwrapStarlarkValue(t *starlark.Thread, value starlark.Value) (interface{},
 			items = append(items, unwrapped)
 		}
 		return items, nil
-
+	case starlark.NoneType:
+		return nil, nil
 	case starlark.String:
 		return string(v), nil
 	default:

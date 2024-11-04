@@ -22,6 +22,30 @@ armor3 = {
     },
 }
 
+armor4 = {
+    "label": "Splint armour (Defence +4)",
+    "attributes": {
+        "category": "armor",
+        "combat-mod": 4,
+    },
+}
+
+armor5 = {
+    "label": "Plate armour (Defence +5)",
+    "attributes": {
+        "category": "armor",
+        "combat-mod": 5,
+    },
+}
+
+armor6 = {
+    "label": "Plate armour (Defence +6)",
+    "attributes": {
+        "category": "armor",
+        "combat-mod": 6,
+    },
+}
+
 weapon0 = {
     "label": "No combat bonus",
     "attributes": {
@@ -38,11 +62,43 @@ weapon1 = {
     },
 }
 
+weapon2 = {
+    "label": "Combat bonus +2",
+    "attributes": {
+        "category": "weapon",
+        "combat-mod": 2,
+    },
+}
+
+weapon3 = {
+    "label": "Combat bonus +3",
+    "attributes": {
+        "category": "weapon",
+        "combat-mod": 3,
+    },
+}
+
 magical1 = {
     "label": "Amber wand (Magic +1)",
     "attributes": {
         "category": "magical",
         "magic-mod": 1,
+    },
+}
+
+magical2 = {
+    "label": "Ebony wand (Magic +2)",
+    "attributes": {
+        "category": "magical",
+        "magic-mod": 2,
+    },
+}
+
+magical3 = {
+    "label": "Cobalt wand (Magic +3)",
+    "attributes": {
+        "category": "magical",
+        "magic-mod": 3,
     },
 }
 
@@ -54,10 +110,25 @@ mandolin = {
     },
 }
 
+mandolin2 = {
+    "label": "Mandolin (Charisma +2)",
+    "attributes": {
+        "category": "other",
+        "charisma-mod": 2,
+    },
+}
+
 lockpicks = {
     "label": "Lockpicks (Thievery +1)",
     "attributes": {
         "thievery-mod": 1,
+    },
+}
+
+magiclockpicks = {
+    "label": "Magic lockpicks (THIEVERY +2)",
+    "attributes": {
+        "thievery-mod": 2,
     },
 }
 
@@ -68,6 +139,13 @@ holysymbol = {
     },
 }
 
+silverholysymbol = {
+    "label": "Silver holy symbol (SANCTITY +2)",
+    "attributes": {
+        "sanctity-mod": 2,
+    },
+}
+
 compass = {
     "label": "Compass (Scouting +1)",
     "attributes": {
@@ -75,11 +153,21 @@ compass = {
     },
 }
 
+goldcompass = {
+    "label": "Gold compass (SCOUTING +2)",
+    "attributes": {
+        "scouting-mod": 2,
+    },
+}
+
 rope = {"label": "Rope"}
 
 lantern = {"label": "Lantern"}
 
-climbinggear = {"label": "Climbing gear"}
+climbinggear = {
+    "id": "climbing-gear",
+    "label": "Climbing gear",
+}
 
 bagofpearls = {"label": "Bag of pearls"}
 
@@ -88,3 +176,5 @@ ratpoison = {"label": "Rat poison"}
 pickaxe = {"label": "Pickaxe"}
 
 silvernugget = {"label": "Silver nugget"}
+
+parchment = {"label": "Parchment"}

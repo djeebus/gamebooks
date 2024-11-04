@@ -1,4 +1,4 @@
-package bookRepo
+package repo
 
 import "github.com/pkg/errors"
 

@@ -1,7 +1,14 @@
 package storage
 
+import (
+	"github.com/rs/zerolog/log"
+)
+
 func GetString(s Storage, key string) string {
-	result := s.Get(key)
+	result, err := s.Get(key)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to get string")
+	}
 	if result == nil {
 		return ""
 	}
@@ -15,22 +22,29 @@ func GetString(s Storage, key string) string {
 }
 
 func GetBool(s Storage, key string) bool {
-	result := s.Get(key)
+	result, err := s.Get(key)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to get bool")
+	}
+
 	if result == nil {
 		return false
 	}
 
 	val, ok := result.(bool)
 	if !ok {
+		log.Error().Err(err).Msg("value was not a bool")
 		return false
 	}
 
 	return val
-
 }
 
 func GetSlice[T any](s Storage, key string) []T {
-	val := s.Get(key)
+	val, err := s.Get(key)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to get value")
+	}
 	items, ok := val.([]T)
 	if !ok || items == nil {
 		items = make([]T, 0)
@@ -38,10 +52,10 @@ func GetSlice[T any](s Storage, key string) []T {
 	return items
 }
 
-func Push[T any](s Storage, key string, value T) {
+func Push[T any](s Storage, key string, value T) error {
 	items := GetSlice[T](s, key)
 	items = append(items, value)
-	s.Set(key, items)
+	return s.Set(key, items)
 }
 
 func Peek[T any](s Storage, key string) T {
@@ -55,15 +69,18 @@ func Peek[T any](s Storage, key string) T {
 	return popped
 }
 
-func Pop[T any](s Storage, key string) T {
+func Pop[T any](s Storage, key string) (T, error) {
 	items := GetSlice[T](s, key)
 	if len(items) == 0 {
 		var t T
-		return t
+		return t, nil
 	}
 
 	popped := items[len(items)-1]
 	items = items[:len(items)-1]
-	s.Set(key, items)
-	return popped
+	if err := s.Set(key, items); err != nil {
+		return popped, err
+	}
+
+	return popped, nil
 }

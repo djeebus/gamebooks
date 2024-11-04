@@ -1,4 +1,4 @@
-load("../lib/bank.star", bank_withdraw="withdraw")
+load("../lib/bank.star", "bank_withdraw")
 load("../lib/stamina.star", "stamina_add")
 
 markdown = """

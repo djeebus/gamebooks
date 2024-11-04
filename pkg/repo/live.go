@@ -1,18 +1,20 @@
-package bookRepo
+package repo
 
 import (
+	"fmt"
 	"gamebooks/pkg/executor"
 	"gamebooks/pkg/models"
 	"github.com/pkg/errors"
-	"io/fs"
+	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
-func NewWithLiveReload(executor *executor.Executor) Game {
+func NewWithLiveReload(executor *executor.Executor) Repo {
 	return &LiveReload{executor: executor}
 }
+
+var _ Repo = new(LiveReload)
 
 type LiveReload struct {
 	executor *executor.Executor
@@ -49,51 +51,47 @@ func (l *LiveReload) GetBookByID(bookID string) (*models.Book, error) {
 	return &book, nil
 }
 
-var ErrDone = errors.New("done")
+func (l *LiveReload) findPageFile(book *models.Book, currentPagePath, pageID string) (string, error) {
+	currentDir := ""
+	if currentPagePath != "" {
+		currentDir = filepath.Dir(currentPagePath)
+	}
 
-func (l *LiveReload) findPageFile(bookID, pageID string) (string, error) {
-	pagesPath := filepath.Join("books", bookID)
+	pagesPath, err := url.JoinPath(book.Path, currentDir, pageID+".*")
+	if err != nil {
+		return "", errors.Wrap(err, "failed to find file")
+	}
 
-	var pagePath string
+	files, err := filepath.Glob(pagesPath)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to find page: %s", pagesPath)
+	}
 
-	err := filepath.Walk(pagesPath, func(path string, info fs.FileInfo, err error) error {
-		if info == nil { // but why??
-			return nil
-		}
-
-		if info.IsDir() {
-			return nil
-		}
-
-		filename := filepath.Base(path)
-		if !strings.HasPrefix(filename, pageID+".") {
-			return nil
-		}
-
-		pagePath = path
-		return ErrDone
-	})
-
-	if err == nil {
+	switch len(files) {
+	case 0:
 		return "", ErrNotFound
+	case 1:
+		path, err := filepath.Rel(book.Path, files[0])
+		if err != nil {
+			return "", errors.Wrap(err, "failed to find a relative path")
+		}
+		return path, nil
+	default:
+		return "", fmt.Errorf("file not found: %s", pagesPath)
 	}
+}
 
-	if errors.Is(err, ErrDone) {
-		return pagePath, nil
+func (l *LiveReload) FindPagePath(book *models.Book, currentPathPath string, pageID string) (string, error) {
+	pagePath, err := l.findPageFile(book, currentPathPath, pageID)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to find page file")
 	}
-
-	return "", errors.Wrap(err, "failed to find page path")
+	return pagePath, nil
 }
 
 func (l *LiveReload) GetPage(bookID, pageID string) (*models.Page, error) {
-	pagePath, err := l.findPageFile(bookID, pageID)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to find page file")
-	}
-
 	return &models.Page{
 		BookID: bookID,
 		PageID: pageID,
-		Path:   pagePath,
 	}, nil
 }

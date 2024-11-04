@@ -14,11 +14,13 @@ func processBookStarlarkScript(path string, book *models.Book, storage storage.S
 
 	rootDir := filepath.Dir(path)
 
-	predeclared := starlarkPredeclared(storage)
+	predeclared := starlarkPredeclared(storage, nil)
 
 	opts := syntax.FileOptions{}
 
-	t.Load = starlarkLoad(rootDir, &opts, predeclared)
+	stack := newStack[string](rootDir)
+
+	t.Load = starlarkLoad(&opts, predeclared, stack)
 
 	result, err := starlark.ExecFileOptions(&opts, &t, path, nil, predeclared)
 	if err != nil {
@@ -28,23 +30,30 @@ func processBookStarlarkScript(path string, book *models.Book, storage storage.S
 	return newStarlarkBookResult(&t, result), nil
 }
 
-func starlarkLoad(rootDir string, opts *syntax.FileOptions, predeclared starlark.StringDict) func(thread *starlark.Thread, module string) (starlark.StringDict, error) {
+func starlarkLoad(opts *syntax.FileOptions, predeclared starlark.StringDict, stack *stack[string]) func(thread *starlark.Thread, module string) (starlark.StringDict, error) {
 	return func(t *starlark.Thread, module string) (starlark.StringDict, error) {
+		rootDir := stack.peek()
 		modulePath := filepath.Join(rootDir, module)
-		return starlark.ExecFileOptions(opts, t, modulePath, nil, predeclared)
+		newRootDir := filepath.Dir(modulePath)
+		stack.push(newRootDir)
+		result, err := starlark.ExecFileOptions(opts, t, modulePath, nil, predeclared)
+		stack.pop()
+		return result, err
 	}
 }
 
-func processPageStarlarkScript(path string, book *models.Book, page *models.Page, s storage.Storage) (models.PageResult, error) {
+func processPageStarlarkScript(book *models.Book, page *models.Page, path string, s storage.Storage) (models.PageResult, error) {
 	var t starlark.Thread
 
 	rootDir := filepath.Dir(path)
 
-	predeclared := starlarkPredeclared(s)
+	predeclared := starlarkPredeclared(s, page)
 
 	opts := syntax.FileOptions{}
 
-	t.Load = starlarkLoad(rootDir, &opts, predeclared)
+	stack := newStack(rootDir)
+
+	t.Load = starlarkLoad(&opts, predeclared, stack)
 
 	result, err := starlark.ExecFileOptions(&opts, &t, path, nil, predeclared)
 	if err != nil {
@@ -56,5 +65,5 @@ func processPageStarlarkScript(path string, book *models.Book, page *models.Page
 		return nil, errors.Wrap(err, "failed to unwrap starlark value")
 	}
 
-	return newStarlarkPageResult(&t, unwrapped), nil
+	return newStarlarkPageResult(&t, page, unwrapped), nil
 }

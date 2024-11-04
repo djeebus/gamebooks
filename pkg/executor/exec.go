@@ -19,15 +19,17 @@ func (p *Executor) ExecuteBook(book *models.Book, storage storage.Storage) (mode
 	return nil, fmt.Errorf("not implemented: %q", book.Path)
 }
 
-func (p *Executor) ExecutePage(book *models.Book, page *models.Page, storage storage.Storage) (models.PageResult, error) {
-	switch filepath.Ext(page.Path) {
+func (p *Executor) ExecutePage(book *models.Book, page *models.Page, pagePath string, storage storage.Storage) (models.PageResult, error) {
+	path := filepath.Join(book.Path, pagePath)
+
+	switch filepath.Ext(pagePath) {
 	case ".star":
-		results, err := processPageStarlarkScript(page.Path, book, page, storage)
+		results, err := processPageStarlarkScript(book, page, path, storage)
 		return results, errors.Wrap(err, "failed to page process script")
 	case ".md":
-		results, err := processMarkdownPage(page.Path)
+		results, err := processMarkdownPage(book, page, path)
 		return results, errors.Wrapf(err, "failed to build markdown page")
 	default:
-		return nil, fmt.Errorf("not implemented: %q", page.Path)
+		return nil, fmt.Errorf("not implemented: %q", pagePath)
 	}
 }

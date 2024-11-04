@@ -1,4 +1,4 @@
-load("../lib/bank.star", bank_balance="balance", bank_deposit="deposit", bank_assert_min_balance="assert_min_balance")
+load("../lib/bank.star", "bank_balance", "bank_deposit", "bank_assert_min_balance")
 load("../lib/inventory.star", inventory_add="add", inventory_remove="remove")
 
 def render(name, items, *item_ids):

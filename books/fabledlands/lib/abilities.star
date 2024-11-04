@@ -7,6 +7,6 @@ def ability_get(ability):
     key = _key(ability)
     return storage_get(key)
 
-def set(ability, score):
+def ability_set(ability, score):
     key = _key(ability)
     storage_set(key, score)

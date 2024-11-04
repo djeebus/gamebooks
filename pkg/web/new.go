@@ -8,10 +8,18 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	"github.com/yuin/goldmark"
 	"github.com/ziflex/lecho/v3"
+	"net/http"
 )
 
-func New(g bookRepo.Game, storage storage.Storage, executor *executor.Executor, log zerolog.Logger) (*echo.Echo, error) {
+func New(
+	repo bookRepo.Repo,
+	storage storage.Storage,
+	executor *executor.Executor,
+	log zerolog.Logger,
+	markdown goldmark.Markdown,
+) (*echo.Echo, error) {
 	e := echo.New()
 	e.Debug = true
 	e.HideBanner = true
@@ -22,12 +30,18 @@ func New(g bookRepo.Game, storage storage.Storage, executor *executor.Executor, 
 	e.Use(recordErrors)
 	e.Use(addSessionID)
 
-	v, err := newViews(g, storage, executor)
+	v, err := newViews(repo, storage, executor, markdown)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create views")
 	}
 
-	e.GET("/", v.gameView)
+	e.GET("/", func(c echo.Context) error {
+		return c.Redirect(http.StatusTemporaryRedirect, "/b/")
+	})
+	e.GET("/b/", v.listBooks)
+	e.GET("/b/:bookID", v.gameView)
+	e.GET("/b/:bookID/-/clear", v.gameClear)
+	e.GET("b/:bookID/-/page/:pageID", v.setPageID)
 
 	return e, nil
 }

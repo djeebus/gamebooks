@@ -1,7 +1,8 @@
 load("../lib/bank.star", "cash_get")
 
-title = "The Adventure Begins"
 markdown = """
+# The Adventure Begins
+
 Due to bad luck and loan sharks, your financial situation is
 getting very desperate. Your small merchant starship never
 seems to have a full cargo hold, but operating costs are high.

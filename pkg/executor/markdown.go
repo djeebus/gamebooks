@@ -9,8 +9,8 @@ import (
 	"strings"
 )
 
-func processMarkdownPage(path string) (models.PageResult, error) {
-	data, err := os.ReadFile(path)
+func processMarkdownPage(book *models.Book, page *models.Page, pagePath string) (models.PageResult, error) {
+	data, err := os.ReadFile(pagePath)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read file")
 	}
@@ -71,14 +71,6 @@ func (m markdownPageResults) Markdown() string {
 	return val
 }
 
-func (m markdownPageResults) Title() string {
-	val, ok := m.metadata["title"].(string)
-	if !ok {
-		return ""
-	}
-	return val
-}
-
 func (m markdownPageResults) OnCommand(command string) (string, error) {
 	if c, ok := m.metadata["on_command"].(models.Callable); ok {
 		result, err := c([]any{command}, nil)
@@ -88,6 +80,10 @@ func (m markdownPageResults) OnCommand(command string) (string, error) {
 
 		return result.(string), nil
 	}
+	return "", nil
+}
+
+func (m markdownPageResults) OnPage() (string, error) {
 	return "", nil
 }
 

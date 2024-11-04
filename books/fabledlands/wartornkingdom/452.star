@@ -1,4 +1,4 @@
-load("../lib/bank.star", bank_balance="balance", bank_assert_min_balance="assert_min_balance")
+load("../lib/bank.star", "bank_balance", "bank_assert_min_balance")
 load("../lib/inventory.star", inventory_add="add")
 load("../lib/items.star",
      "armor1", "armor2", "armor3",

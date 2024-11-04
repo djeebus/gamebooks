@@ -1,14 +1,30 @@
 load("./lib/abilities.star", "ability_get")
-load("./lib/bank.star", bank_balance="balance")
+load("./lib/bank.star", "bank_balance")
 load("./lib/character.star", "defense_get", "name_get", "profession_get", "rank_get")
 load("./lib/codewords.star", "codeword_assert", "codeword_all")
 load("./lib/god.star", "god_get")
-load("./lib/stamina.star", stamina_get="get", stamina_get_max="get_max")
+load("./lib/house.star", "house_assert")
+load("./lib/inventory.star", "inventory_list")
+load("./lib/stamina.star", "stamina_get", "stamina_get_max")
+load("./lib/title.star", "title_assert")
 
-start_page = "0"
+start_page = "start"
+
+def _fight(combat, defense, stamina, success_page_id, fail_page_id):
+    return "!" + success_page_id
 
 def _require_codeword(codeword, page_id):
     codeword_assert(codeword)
+    return page_id
+
+
+def _require_house(page_id):
+    house_assert()
+    return page_id
+
+
+def _require_title(title, page_id):
+    title_assert(title)
     return page_id
 
 
@@ -22,7 +38,10 @@ def _make_roll(ability, difficulty, success_page_id, fail_page_id):
 
 
 _base_commands = {
+    'fight': _fight,
     'require-codeword': _require_codeword,
+    'require-house': _require_house,
+    'require-title': _require_title,
     'roll': _make_roll,
 }
 
@@ -64,6 +83,12 @@ def on_page(page):
 
     if page["page_id"] != start_page:
         markdown = page["markdown"]
+
+        _inventory = [
+            "<tr><td>%s</td></tr>" % item["label"]
+            for item in inventory_list()
+        ]
+        _inventory = "\n".join(_inventory)
 
         header = """
 <table>
@@ -235,7 +260,7 @@ def on_page(page):
             ability_get('thievery'),
             stamina_get_max(),
             stamina_get(),
-            "", # possessions
+            _inventory, # possessions
             _codewords(), # codewords
             "", # resurrection
             bank_balance(),

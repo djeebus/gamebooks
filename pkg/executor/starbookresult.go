@@ -13,6 +13,8 @@ type starlarkBookResult struct {
 	result starlark.StringDict
 }
 
+var _ models.BookResult = new(starlarkBookResult)
+
 func newStarlarkBookResult(t *starlark.Thread, result starlark.StringDict) models.BookResult {
 	return &starlarkBookResult{t, result}
 }
@@ -32,7 +34,6 @@ func (s starlarkBookResult) asString(key string) string {
 func asString(result starlark.StringDict, key string) string {
 	val, ok := result[key]
 	if !ok {
-		log.Error().Str("key", key).Msg("key not found")
 		return ""
 	}
 
@@ -58,10 +59,10 @@ func (s starlarkBookResult) OnStart() error {
 	return nil
 }
 
-func (s starlarkBookResult) OnPage(page *models.Page, result models.PageResult) error {
+func (s starlarkBookResult) OnPage(page *models.Page, result models.PageResult) (string, error) {
 	onPage := s.result["on_page"]
 	if onPage == nil {
-		return nil
+		return "", nil
 	}
 
 	var err error
@@ -70,34 +71,30 @@ func (s starlarkBookResult) OnPage(page *models.Page, result models.PageResult) 
 
 	if value := result.Get("on_command"); value != nil {
 		if err = input.SetKey(starlark.String("on_command"), starlark.Bool(true)); err != nil {
-			return errors.Wrap(err, "failed to add on_command flag")
+			return "", errors.Wrap(err, "failed to add on_command flag")
 		}
 	}
 
 	if err = input.SetKey(starlark.String("page_id"), starlark.String(page.PageID)); err != nil {
-		return errors.Wrap(err, "failed to set page_id")
-	}
-
-	if err = input.SetKey(starlark.String("title"), starlark.String(result.Title())); err != nil {
-		return errors.Wrap(err, "failed to set title")
+		return "", errors.Wrap(err, "failed to set page_id")
 	}
 
 	if err = input.SetKey(starlark.String("markdown"), starlark.String(result.Markdown())); err != nil {
-		return errors.Wrap(err, "failed to set markdown")
+		return "", errors.Wrap(err, "failed to set markdown")
 	}
 
 	if _, err = starlark.Call(s.t, onPage, []starlark.Value{input}, nil); err != nil {
-		return errors.Wrap(err, "failed to call on_page")
+		return "", errors.Wrap(err, "failed to call on_page")
 	}
 
 	unwrapped, err := unwrapStarlarkValue(s.t, input)
 	if err != nil {
-		return errors.Wrap(err, "failed to unwrap input")
+		return "", errors.Wrap(err, "failed to unwrap input")
 	}
 
 	unwrappedMap, ok := unwrapped.(map[string]any)
 	if !ok {
-		return fmt.Errorf("could not cast %T to map[string]any", unwrapped)
+		return "", fmt.Errorf("could not cast %T to map[string]any", unwrapped)
 	}
 
 	if value, ok := unwrappedMap["on_command"].(bool); ok && value {
@@ -106,5 +103,5 @@ func (s starlarkBookResult) OnPage(page *models.Page, result models.PageResult) 
 
 	result.UpdateResults(unwrappedMap)
 
-	return nil
+	return "", nil
 }

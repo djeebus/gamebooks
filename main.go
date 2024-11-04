@@ -2,10 +2,15 @@ package main
 
 import (
 	"gamebooks/pkg/executor"
-	bookRepo "gamebooks/pkg/repo"
+	"gamebooks/pkg/markdown"
+	"gamebooks/pkg/repo"
 	"gamebooks/pkg/storage"
 	"gamebooks/pkg/web"
-	zerolog "github.com/rs/zerolog"
+	"github.com/rs/zerolog"
+	"github.com/yuin/goldmark"
+	meta "github.com/yuin/goldmark-meta"
+	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/renderer/html"
 )
 
 func main() {
@@ -14,10 +19,25 @@ func main() {
 	l.Level(zerolog.DebugLevel)
 
 	p := executor.New()
-	g := bookRepo.NewWithLiveReload(p)
-	s := storage.NewInMemory()
+	r := repo.NewWithLiveReload(p)
+	s, err := storage.NewBBolt("data.db")
+	if err != nil {
+		panic(err)
+	}
 
-	e, err := web.New(g, s, p, l)
+	m := goldmark.New(
+		goldmark.WithExtensions(
+			meta.New(),
+			extension.NewTable(),
+			markdown.NewLinkTracker(r),
+			extension.TaskList,
+		),
+		goldmark.WithRendererOptions(
+			html.WithUnsafe(),
+		),
+	)
+
+	e, err := web.New(r, s, p, l, m)
 	if err != nil {
 		panic(err)
 	}

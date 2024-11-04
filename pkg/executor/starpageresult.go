@@ -9,12 +9,16 @@ import (
 
 type starlarkPageResult struct {
 	t      *starlark.Thread
+	page   *models.Page
 	result map[string]any
 }
 
-func newStarlarkPageResult(t *starlark.Thread, result map[string]any) *starlarkPageResult {
+var _ models.PageResult = new(starlarkPageResult)
+
+func newStarlarkPageResult(t *starlark.Thread, page *models.Page, result map[string]any) *starlarkPageResult {
 	return &starlarkPageResult{
 		t:      t,
+		page:   page,
 		result: result,
 	}
 }
@@ -28,19 +32,37 @@ func (s starlarkPageResult) UpdateResults(dict map[string]any) {
 func (s starlarkPageResult) Markdown() string {
 	val, ok := s.result["markdown"].(string)
 	if !ok {
-		panic("missing required field: 'markdown'")
+		panic("fmissing required field: 'markdown'")
 	}
 
 	return val
 }
 
-func (s starlarkPageResult) Title() string {
-	val, ok := s.result["title"].(string)
+func (s starlarkPageResult) OnPage() (string, error) {
+	onPage, ok := s.result["on_page"].(models.Callable)
 	if !ok {
-		return ""
+		return "", nil
 	}
 
-	return val
+	page := map[string]any{
+		"page_id":  s.page.PageID,
+		"markdown": s.result["markdown"],
+	}
+
+	result, err := onPage([]any{page}, nil)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to call function")
+	}
+
+	if pageID, ok := result.(string); ok {
+		return pageID, nil
+	}
+
+	if dict, ok := result.(map[string]any); ok {
+		s.UpdateResults(dict)
+	}
+
+	return "", nil
 }
 
 func (s starlarkPageResult) OnCommand(command string) (string, error) {

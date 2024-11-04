@@ -29,6 +29,10 @@ def codeword_all():
     return words
 
 
+def codeword_has(codeword):
+    words = _get()
+    return codeword in words
+
 def codeword_add(codeword):
     codeword = _clean(codeword)
     words = _get()
