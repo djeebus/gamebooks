@@ -1,6 +1,6 @@
-load("../lib/bank.star", "withdraw")
+load("../lib/bank.star", "bank_withdraw")
 load("../lib/cargo.star", "furs", "grain", "metals", "minerals", "spices", "textiles", "timber")
-load("../lib/market.star", market_render="render")
+load("../lib/market.star", "market_render")
 load("../lib/ship.star", ship_assert_ownership="assert_ownership")
 
 items = {
@@ -61,7 +61,7 @@ If you own a ship, you can [set sail](!setsail).
 
 def on_command(command):
     if command == "passage":
-        withdraw(15)
+        bank_withdraw(15)
         return "74"
 
     if command == "setsail":

@@ -3,40 +3,40 @@ load("../lib/items.star",
      "weapon0", "weapon1", "weapon2", "weapon3",
      "magical1", "magical2", "magical3",
      "lockpicks", "holysymbol", "compass", "parchment", "rope", "lantern")
-load("../lib/market.star", "render", "on_command")
+load("../lib/market.star", "market_render", "on_command")
 
 items = {
     "armor1": {
-        "items": armor1,
+        "item": armor1,
         "buy": 50,
         "sell": 45,
     },
     "armor2": {
-        "items": armor2,
+        "item": armor2,
         "buy": 100,
         "sell": 90,
     },
     "armor3": {
-        "items": armor3,
+        "item": armor3,
         "buy": 200,
         "sell": 180,
     },
     "armor4": {
-        "items": armor4,
+        "item": armor4,
         "sell": 360,
     },
     "armor5": {
-        "items": armor5,
+        "item": armor5,
         "sell": 720,
     },
     "armor6": {
-        "items": armor6,
+        "item": armor6,
         "sell": 1440,
     },
 }
 
 _market = "\n\n".join([
-    render("Armour", items, "armor1", "armor2", "armor3", "armor4", "armor5", "armor6")
+    market_render("Armour", items, "armor1", "armor2", "armor3", "armor4", "armor5", "armor6")
 ])
 
 markdown = """
@@ -55,4 +55,4 @@ carry on your person. To buy trade goods that can be carried on
 board ship, you need to visit the warehouses at the waterfront.
 
 [I'm done](217)
-""" % _market
+""" % (_market)

@@ -1,13 +1,13 @@
 load("../lib/bank.star", "bank_balance", "bank_assert_min_balance")
-load("../lib/inventory.star", inventory_add="add")
+load("../lib/inventory.star", "inventory_add")
 load("../lib/items.star",
      "armor1", "armor2", "armor3",
      "weapon0", "weapon1",
      "magical1",
      "mandolin", "lockpicks", "holysymbol", "compass", "rope", "lantern",
      "climbinggear", "bagofpearls", "ratpoison", "pickaxe", "silvernugget"
-)
-load("../lib/market.star", market_render="render")
+     )
+load("../lib/market.star", "market_render")
 
 items = {
     "armor1": {
@@ -86,17 +86,15 @@ items = {
     },
 }
 
-
 _market = [
-    ["Armour", "armor1", "armor2", "armor3"],
-    ["Weapons (sword, axe, etc)", "weapon0", "weapon1"],
-    ["Magical Equipment", "magical1"],
+    ["Armour", items, "armor1", "armor2", "armor3"],
+    ["Weapons (sword, axe, etc)", items, "weapon0", "weapon1"],
+    ["Magical Equipment", items, "magical1"],
     [
-        "Other items", "mandolin", "lockpicks", "holysymbol", "compass", "rope", "lantern", "climbinggear",
+        "Other items", items, "mandolin", "lockpicks", "holysymbol", "compass", "rope", "lantern", "climbinggear",
         "bagofpearls", "ratpoison", "pickaxe", "silvernugget",
     ],
 ]
-
 
 markdown = """
 The Trading Post has a small market place in the village square,
@@ -109,6 +107,7 @@ purchase price are not available locally.
 """ % (
     "\n\n".join([market_render(*args) for args in _market])
 )
+
 
 def on_command(command):
     if on_command(command):

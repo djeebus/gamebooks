@@ -32,7 +32,7 @@ func (s starlarkPageResult) UpdateResults(dict map[string]any) {
 func (s starlarkPageResult) Markdown() string {
 	val, ok := s.result["markdown"].(string)
 	if !ok {
-		panic("fmissing required field: 'markdown'")
+		panic("missing required field: 'markdown'")
 	}
 
 	return val

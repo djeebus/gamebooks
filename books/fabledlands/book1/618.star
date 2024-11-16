@@ -1,5 +1,5 @@
-load("../lib/bank.star", bank_withdraw="withdraw")
-load("../lib/god.star", god_set="set")
+load("../lib/bank.star", "bank_withdraw")
+load("../lib/god.star", "god_set")
 
 markdown = """
 Becoming an initiate of Lacuna gives you the benefit of paying

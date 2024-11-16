@@ -5,9 +5,12 @@ import (
 	"gamebooks/pkg/executor"
 	"gamebooks/pkg/models"
 	"github.com/pkg/errors"
+	"io/fs"
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 )
 
 func NewWithLiveReload(executor *executor.Executor) Repo {
@@ -81,17 +84,57 @@ func (l *LiveReload) findPageFile(book *models.Book, currentPagePath, pageID str
 	}
 }
 
-func (l *LiveReload) FindPagePath(book *models.Book, currentPathPath string, pageID string) (string, error) {
-	pagePath, err := l.findPageFile(book, currentPathPath, pageID)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to find page file")
+var pageExtensions = []string{".md", ".star"}
+
+func (l *LiveReload) GetPages(book *models.Book) ([]*models.Page, error) {
+	var pages []*models.Page
+
+	if err := filepath.Walk(book.Path, func(path string, info fs.FileInfo, err error) error {
+		rel, err := filepath.Rel(book.Path, path)
+		if err != nil {
+			return errors.Wrap(err, "failed to calculate relative path")
+		}
+
+		if rel == "game.star" {
+			return nil
+		}
+
+		if rel == "lib" {
+			return fs.SkipDir
+		}
+
+		if info.IsDir() {
+			return nil
+		}
+
+		ext := filepath.Ext(path)
+		if !slices.Contains(pageExtensions, ext) {
+			return nil
+		}
+		base := strings.TrimSuffix(rel, ext)
+
+		pages = append(pages, &models.Page{
+			Book:     book,
+			PageID:   base,
+			PagePath: rel,
+		})
+		return nil
+	}); err != nil {
+		return nil, errors.Wrap(err, "failed to walk book")
 	}
-	return pagePath, nil
+
+	return pages, nil
 }
 
-func (l *LiveReload) GetPage(bookID, pageID string) (*models.Page, error) {
+func (l *LiveReload) GetPage(book *models.Book, currentPagePath, pageID string) (*models.Page, error) {
+	pagePath, err := l.findPageFile(book, currentPagePath, pageID)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to find page file")
+	}
+
 	return &models.Page{
-		BookID: bookID,
-		PageID: pageID,
+		Book:     book,
+		PageID:   pageID,
+		PagePath: pagePath,
 	}, nil
 }

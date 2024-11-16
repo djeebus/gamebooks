@@ -12,8 +12,18 @@ def _set(items):
 def inventory_add(item):
     storage_push(_inventory_key, item)
 
+def inventory_contains(item_id):
+    items = inventory_list()
+    for item in items:
+        if item['item_id'] == item_id:
+            return True
+    return False
+
 def inventory_list():
-    return storage_get(_inventory_key)
+    result = storage_get(_inventory_key)
+    if result == None:
+        result = []
+    return result
 
 def inventory_remove(item_id):
     items = _get()

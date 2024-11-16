@@ -1,7 +1,7 @@
 load("./lib/abilities.star", "ability_get")
 load("./lib/bank.star", "bank_balance")
 load("./lib/character.star", "defense_get", "name_get", "profession_get", "rank_get")
-load("./lib/codewords.star", "codeword_assert", "codeword_all")
+load("./lib/codewords.star", "codeword_assert", "codeword_all", "codeword_add")
 load("./lib/god.star", "god_get")
 load("./lib/house.star", "house_assert")
 load("./lib/inventory.star", "inventory_list")
@@ -37,8 +37,13 @@ def _make_roll(ability, difficulty, success_page_id, fail_page_id):
         return fail_page_id
 
 
+def _gain_codeword(codeword):
+    codeword_add(codeword)
+
+
 _base_commands = {
     'fight': _fight,
+    'gain-codeword': _gain_codeword,
     'require-codeword': _require_codeword,
     'require-house': _require_house,
     'require-title': _require_title,
@@ -74,12 +79,12 @@ def _codewords():
 
 
 def on_page(page):
-    if "allow_return" not in page:
-        page["allow_return"] = False
-    if "clear_history" not in page:
-        page["clear_history"] = True
-    if "on_command" not in page:
-        page["on_command"] = on_command
+    # if "allow_return" not in page:
+    #     page["allow_return"] = False
+    # if "clear_history" not in page:
+    #     page["clear_history"] = True
+    # if "on_command" not in page:
+    #     page["on_command"] = on_command
 
     if page["page_id"] != start_page:
         markdown = page["markdown"]
@@ -88,6 +93,7 @@ def on_page(page):
             "<tr><td>%s</td></tr>" % item["label"]
             for item in inventory_list()
         ]
+
         _inventory = "\n".join(_inventory)
 
         header = """

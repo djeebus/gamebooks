@@ -3,12 +3,12 @@ package markdown
 import (
 	"gamebooks/pkg/models"
 	bookRepo "gamebooks/pkg/repo"
-	"github.com/rs/zerolog/log"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
+	"path/filepath"
 )
 
 type LinkTracker struct {
@@ -43,18 +43,13 @@ func (l linkTrackingParser) Trigger() []byte {
 	return l.wrapped.Trigger()
 }
 
-var linksKey = parser.NewContextKey()
+var linkPageIDs = parser.NewContextKey()
 
 func (l linkTrackingParser) Parse(parent ast.Node, block text.Reader, pc parser.Context) ast.Node {
 	result := l.wrapped.Parse(parent, block, pc)
 	link, ok := result.(*ast.Link)
 	if !ok {
 		return result
-	}
-
-	stored, ok := pc.Get(linksKey).([]string)
-	if !ok {
-		stored = []string{}
 	}
 
 	destination := string(link.Destination)
@@ -68,27 +63,33 @@ func (l linkTrackingParser) Parse(parent ast.Node, block text.Reader, pc parser.
 	}
 
 	book := GetCurrentBook(pc)
-	pagePath := GetCurrentPagePath(pc)
+	currentPageID := GetCurrentPageID(pc)
 
 	pageID := string(link.Destination)
-	path, err := l.repo.FindPagePath(book, pagePath, pageID)
-	if err != nil {
-		log.Warn().
-			Err(err).
-			Str("page_id", pageID).
-			Msg("page cannot be found")
+
+	stored, ok := pc.Get(linkPageIDs).([]string)
+	if !ok {
+		stored = []string{}
 	}
 
-	stored = append(stored, path)
-	pc.Set(linksKey, stored)
+	currentPageID = filepath.Join(book.Path, currentPageID)
+	currentPageDir := filepath.Dir(currentPageID)
+	newPageID := filepath.Join(currentPageDir, pageID)
+	newPageID, err := filepath.Rel(book.Path, newPageID)
+	if err != nil {
+		panic("failed to generate link")
+	}
 
-	link.Destination = append([]byte("?goto="), []byte(path)...)
+	stored = append(stored, newPageID)
+	pc.Set(linkPageIDs, stored)
+
+	link.Destination = append([]byte("?goto="), []byte(newPageID)...)
 
 	return result
 }
 
 func GetLinksFromContext(context parser.Context) []string {
-	links, ok := context.Get(linksKey).([]string)
+	links, ok := context.Get(linkPageIDs).([]string)
 	if !ok {
 		return nil
 	}
@@ -97,7 +98,7 @@ func GetLinksFromContext(context parser.Context) []string {
 
 var currentPageKey = parser.NewContextKey()
 
-func GetCurrentPagePath(pc parser.Context) string {
+func GetCurrentPageID(pc parser.Context) string {
 	pagePath, ok := pc.Get(currentPageKey).(string)
 	if !ok {
 		panic("failed to find current page in context")
@@ -106,7 +107,7 @@ func GetCurrentPagePath(pc parser.Context) string {
 	return pagePath
 }
 
-func SetCurrentPagePath(pc parser.Context, path string) {
+func SetCurrentPageID(pc parser.Context, path string) {
 	pc.Set(currentPageKey, path)
 }
 

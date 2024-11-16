@@ -68,9 +68,18 @@ rows = [
     ) for index, row in enumerate(items)
 ]
 
+_visited_key = "~~visited~~"
+
+def _maybe(text, page_num):
+    visited = storage_page_get(_visited_key)
+    if visited:
+        return "[" + text + "](" + page_num + ")"
+
+    return "~" + text + "~"
+
 markdown = """
-If there is a tick in the box, turn to 251 immediately. If not, put
-a tick there now and read on.
+If there is a tick in the box, %s. If not, put
+a tick there now and read on. 
 
 If you have the codeword Avenge, turn to 648 immediately.
 Otherwise read on.
@@ -89,7 +98,7 @@ manage to get a lift on a passing boat, and make it safely to
 Cadmium village. 
 
 [Next page](!commit)
-""" % ("\n".join(rows))
+""" % (_maybe('turn to 251 immediately', '251'), "\n".join(rows))
 
 
 def _sum(items):
@@ -131,6 +140,8 @@ def on_command(command):
                 inventory_add(item["item"])
             elif "cash" in item:
                 bank_deposit(item["cash"])
+
+        storage_page_set(_visited_key, True)
 
         return "135"
 

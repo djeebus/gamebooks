@@ -19,7 +19,8 @@ func (p *Executor) ExecuteBook(book *models.Book, storage storage.Storage) (mode
 	return nil, fmt.Errorf("not implemented: %q", book.Path)
 }
 
-func (p *Executor) ExecutePage(book *models.Book, page *models.Page, pagePath string, storage storage.Storage) (models.PageResult, error) {
+func (p *Executor) ExecutePage(book *models.Book, page *models.Page, storage storage.Storage) (models.PageResult, error) {
+	pagePath := page.PagePath
 	path := filepath.Join(book.Path, pagePath)
 
 	switch filepath.Ext(pagePath) {

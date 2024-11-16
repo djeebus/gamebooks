@@ -1,12 +1,12 @@
 package models
 
 type Page struct {
-	BookID string
-	PageID string
+	Book     *Book
+	PageID   string
+	PagePath string
 }
 
 type PageResult interface {
-	Markdown() string
 	OnCommand(command string) (string, error)
 	OnPage() (string, error)
 	UpdateResults(map[string]any)

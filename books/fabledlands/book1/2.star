@@ -1,5 +1,5 @@
 load("../lib/codewords.star", "codeword_has")
-load("../lib/inventory.star", "inventory_has")
+load("../lib/inventory.star", "inventory_contains")
 
 markdown = """
 The soldier recognizes you. He bows and says, ‘Welcome,
@@ -18,7 +18,7 @@ You leave, climbing down to the foothills of the mountains.
 """
 
 def on_page(page):
-    if inventory_has("coded missive"):
+    if inventory_contains("coded missive"):
         return "676"
 
     if codeword_has("deliver"):

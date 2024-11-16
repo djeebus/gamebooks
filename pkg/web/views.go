@@ -4,15 +4,13 @@ import (
 	"bytes"
 	"embed"
 	"fmt"
-	"gamebooks/pkg/executor"
+	"gamebooks/pkg/container"
 	"gamebooks/pkg/markdown"
 	"gamebooks/pkg/models"
-	bookRepo "gamebooks/pkg/repo"
 	"gamebooks/pkg/storage"
 	"github.com/labstack/echo/v4"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/parser"
 	"html/template"
 	"net/http"
@@ -20,32 +18,19 @@ import (
 )
 
 const (
-	keyPagePath          = "--page-id--"
-	previousPagePathsKey = "--previous-pages--"
+	keyPageID          = "--page-id--"
+	previousPageIDsKey = "--previous-pages--"
 )
 
 //go:embed templates/*
 var fs embed.FS
 
 type views struct {
-	repo     bookRepo.Repo
-	storage  storage.Storage
-	executor *executor.Executor
-	markdown goldmark.Markdown
+	ctr container.Container
 }
 
-func newViews(
-	repo bookRepo.Repo,
-	storage storage.Storage,
-	executor *executor.Executor,
-	markdown goldmark.Markdown,
-) (*views, error) {
-	return &views{
-		repo:     repo,
-		storage:  storage,
-		executor: executor,
-		markdown: markdown,
-	}, nil
+func newViews(ctr container.Container) (*views, error) {
+	return &views{ctr: ctr}, nil
 }
 
 type listBooksModel struct {
@@ -56,7 +41,7 @@ type listBooksModel struct {
 const initKey = "--init-book--"
 
 func (v *views) listBooks(c echo.Context) error {
-	books, err := v.repo.GetBooks()
+	books, err := v.ctr.Repo.GetBooks()
 	if err != nil {
 		return errors.Wrap(err, "failed to get books")
 	}
@@ -75,12 +60,12 @@ func (v *views) gameView(c echo.Context) error {
 
 	s := v.getBookStorage(userID, bookID)
 
-	book, err := v.repo.GetBookByID(bookID)
+	book, err := v.ctr.Repo.GetBookByID(bookID)
 	if err != nil {
 		return errors.Wrap(err, "failed to find book")
 	}
 
-	bookResults, err := v.executor.ExecuteBook(book, s)
+	bookResults, err := v.ctr.Executor.ExecuteBook(book, s)
 	if err != nil {
 		return errors.Wrap(err, "failed to execute book")
 	}
@@ -94,52 +79,54 @@ func (v *views) gameView(c echo.Context) error {
 		}
 	}
 
-	pagePath := storage.GetString(s, keyPagePath)
-	if pagePath == "" {
-		startPage := bookResults.GetStartPage()
-		pagePath, err := v.repo.FindPagePath(book, "", startPage)
-		if err != nil {
-			return errors.Wrapf(err, "failed to get page path: %q", startPage)
-		}
-		if err = s.Set(keyPagePath, pagePath); err != nil {
+	pageID := storage.GetString(s, keyPageID)
+	if pageID == "" {
+		pageID := bookResults.GetStartPage()
+		if err = s.Set(keyPageID, pageID); err != nil {
 			return errors.Wrap(err, "failed to set current page path")
 		}
-		storage.Push[string](s, previousPagePathsKey, pagePath)
+		if err = storage.Push[string](s, previousPageIDsKey, pageID); err != nil {
+			return errors.Wrap(err, "failed to set previous page paths")
+		}
 		return reloadPage(c)
 	}
 
-	page, err := v.repo.GetPage(bookID, pagePath)
-	if err != nil {
-		return errors.Wrapf(err, "failed to get page bookID=%s/pageID=%s", bookID, pagePath)
+	if debugPageID := c.QueryParam("debug.go"); debugPageID != "" {
+		pageID = debugPageID
 	}
 
-	pageResults, err := v.executor.ExecutePage(book, page, pagePath, s)
+	page, err := v.ctr.Repo.GetPage(book, "", pageID)
 	if err != nil {
-		return errors.Wrapf(err, "failed to execute page bookID=%s/pageID=%s", bookID, pagePath)
+		return errors.Wrapf(err, "failed to get page bookID=%s/pageID=%s", bookID, pageID)
 	}
 
-	if pageID, err := pageResults.OnPage(); err != nil {
+	pageResults, err := v.ctr.Executor.ExecutePage(book, page, s)
+	if err != nil {
+		return errors.Wrapf(err, "failed to execute page bookID=%s/pageID=%s", bookID, pageID)
+	}
+
+	if nextPageID, err := pageResults.OnPage(); err != nil {
 		return errors.Wrap(err, "failed to execute page.on_page handler")
-	} else if pageID != "" {
-		return v.navigateThroughPageID(c, s, book, pagePath, pageID)
+	} else if nextPageID != "" {
+		return v.navigateThroughPageID(c, s, book, pageID, nextPageID)
 	}
 
 	if pageID, err := bookResults.OnPage(page, pageResults); err != nil {
 		return errors.Wrap(err, "failed to execute book.on_page handler")
 	} else if pageID != "" {
-		return v.navigateThroughPageID(c, s, book, pagePath, pageID)
+		return v.navigateThroughPageID(c, s, book, pageID, pageID)
 	}
 
 	value := pageResults.Get("clear_history")
 	if clearHistory, ok := value.(bool); ok && clearHistory {
-		if err = s.Remove(previousPagePathsKey); err != nil {
+		if err = s.Remove(previousPageIDsKey); err != nil {
 			return errors.Wrap(err, "failed to clear history")
 		}
 	}
 
-	viewModel, links, err := v.generatePageViewModel(pageResults, bookResults, book, page, pagePath, s)
+	viewModel, links, err := v.generatePageViewModel(pageResults, bookResults, book, page, pageID, s)
 	if err != nil {
-		return errors.Wrapf(err, "failed to generate viewModel bookID=%s/pageID=%s", bookID, pagePath)
+		return errors.Wrapf(err, "failed to generate viewModel bookID=%s/pageID=%s", bookID, pageID)
 	}
 
 	if command := c.QueryParam("cmd"); command != "" {
@@ -155,7 +142,7 @@ func (v *views) gameView(c echo.Context) error {
 				command = nextPageID
 				continue
 			}
-			return v.navigateThroughPageID(c, s, book, pagePath, nextPageID)
+			return v.navigateThroughPageID(c, s, book, pageID, nextPageID)
 		}
 	}
 
@@ -176,9 +163,9 @@ func (v *views) gameView(c echo.Context) error {
 }
 
 func (v *views) getBookStorage(userID string, bookID string) storage.Storage {
-	s := v.storage
-	s = storage.NamespacedStorage(v.storage, userID)
-	s = storage.NamespacedStorage(v.storage, bookID)
+	s := v.ctr.Storage
+	s = storage.NamespacedStorage(s, userID)
+	s = storage.NamespacedStorage(s, bookID)
 	return s
 }
 
@@ -188,30 +175,30 @@ func reloadPage(c echo.Context) error {
 	return c.Redirect(http.StatusTemporaryRedirect, path)
 }
 
-func (v *views) navigateThroughPageID(c echo.Context, s storage.Storage, book *models.Book, currentPagePath, pageID string) error {
-	filePath, err := v.repo.FindPagePath(book, currentPagePath, pageID)
+func (v *views) navigateThroughPageID(c echo.Context, s storage.Storage, book *models.Book, currentPageID, pageID string) error {
+	page, err := v.ctr.Repo.GetPage(book, currentPageID, pageID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to find page: %q", pageID)
 	}
 
-	return v.navigateThroughPagePath(c, s, filePath)
+	return v.navigateThroughPagePath(c, s, page.PageID)
 }
 
-func (v *views) navigateThroughPagePath(c echo.Context, s storage.Storage, pagePath string) error {
-	storage.Push[string](s, previousPagePathsKey, pagePath)
-	if err := s.Set(keyPagePath, pagePath); err != nil {
+func (v *views) navigateThroughPagePath(c echo.Context, s storage.Storage, pageID string) error {
+	storage.Push[string](s, previousPageIDsKey, pageID)
+	if err := s.Set(keyPageID, pageID); err != nil {
 		return errors.Wrap(err, "failed to set new page path")
 	}
 
-	log.Info().Str("page_id", pagePath).Msg("navigating forward")
+	log.Info().Str("page_id", pageID).Msg("navigating forward")
 	return reloadPage(c)
 }
 
 func (v *views) navigateToPrevious(c echo.Context, s storage.Storage) error {
-	storage.Pop[string](s, previousPagePathsKey) // throw away current page id
-	prevPagePath := storage.Peek[string](s, previousPagePathsKey)
+	storage.Pop[string](s, previousPageIDsKey) // throw away current page id
+	prevPagePath := storage.Peek[string](s, previousPageIDsKey)
 
-	if err := s.Set(keyPagePath, prevPagePath); err != nil {
+	if err := s.Set(keyPageID, prevPagePath); err != nil {
 		return errors.Wrap(err, "failed to set the next page path")
 	}
 	log.Info().Str("page_id", prevPagePath).Msg("navigating previous")
@@ -226,7 +213,7 @@ type pageModel struct {
 }
 
 func (v *views) buildBreadcrumbs(s storage.Storage) string {
-	pageIDs := storage.GetSlice[string](s, previousPagePathsKey)
+	pageIDs := storage.GetSlice[string](s, previousPageIDsKey)
 	if len(pageIDs) == 0 {
 		return ""
 	}
@@ -247,9 +234,12 @@ func (v *views) generatePageViewModel(
 	pagePath string,
 	s storage.Storage,
 ) (pageModel, []string, error) {
-	text := pageResult.Markdown()
+	text, ok := pageResult.Get("markdown").(string)
+	if !ok {
+		return pageModel{}, nil, errors.New("failed to find markdown field")
+	}
 
-	pages := storage.GetSlice[string](s, previousPagePathsKey)
+	pages := storage.GetSlice[string](s, previousPageIDsKey)
 	if len(pages) > 1 {
 		text = fmt.Sprintf("%s\n\n[go back](__previous__)", text)
 	}
@@ -260,10 +250,10 @@ func (v *views) generatePageViewModel(
 
 	context := parser.NewContext()
 	markdown.SetCurrentBook(context, book)
-	markdown.SetCurrentPagePath(context, pagePath)
+	markdown.SetCurrentPageID(context, page.PageID)
 
 	var buf bytes.Buffer
-	if err := v.markdown.Convert([]byte(text), &buf, parser.WithContext(context)); err != nil {
+	if err := v.ctr.Markdown.Convert([]byte(text), &buf, parser.WithContext(context)); err != nil {
 		return pageModel{}, nil, errors.Wrap(err, "failed to render markdown")
 	}
 
@@ -296,7 +286,7 @@ func (v *views) gameClear(c echo.Context) error {
 func (v *views) setPageID(c echo.Context) error {
 	userID := getUserID(c)
 	bookID := getBookID(c)
-	book, err := v.repo.GetBookByID(bookID)
+	book, err := v.ctr.Repo.GetBookByID(bookID)
 	if err != nil {
 		return errors.Wrap(err, "failed to get book")
 	}

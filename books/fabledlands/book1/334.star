@@ -1,5 +1,5 @@
-load("../lib/bank.star", bank_withdraw="withdraw")
-load("../lib/god.star", god_clear="clear")
+load("../lib/bank.star", "bank_withdraw")
+load("../lib/god.star", "god_clear")
 
 markdown = """
 To renounce the worship of Lacuna, you must pay 40 Shards in

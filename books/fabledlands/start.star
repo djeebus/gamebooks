@@ -126,4 +126,4 @@ def on_command(name):
     bank_deposit(10)
     stamina_set(10)
 
-    return "wartornkingdom/1"
+    return "book1/1"

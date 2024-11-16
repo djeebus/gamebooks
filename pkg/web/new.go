@@ -1,24 +1,18 @@
 package web
 
 import (
-	"gamebooks/pkg/executor"
-	bookRepo "gamebooks/pkg/repo"
-	"gamebooks/pkg/storage"
+	"gamebooks/pkg/container"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
-	"github.com/yuin/goldmark"
 	"github.com/ziflex/lecho/v3"
 	"net/http"
 )
 
 func New(
-	repo bookRepo.Repo,
-	storage storage.Storage,
-	executor *executor.Executor,
+	ctr container.Container,
 	log zerolog.Logger,
-	markdown goldmark.Markdown,
 ) (*echo.Echo, error) {
 	e := echo.New()
 	e.Debug = true
@@ -30,7 +24,7 @@ func New(
 	e.Use(recordErrors)
 	e.Use(addSessionID)
 
-	v, err := newViews(repo, storage, executor, markdown)
+	v, err := newViews(ctr)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create views")
 	}
