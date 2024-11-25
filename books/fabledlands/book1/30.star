@@ -13,7 +13,7 @@ items = {
         "sell": 90,
     },
     "armour3": {
-        "item": 
+        "item": armor3,
     }
 }
 

@@ -7,8 +7,9 @@ type Page struct {
 }
 
 type PageResult interface {
-	OnCommand(command string) (string, error)
+	OnCommand(command string, args []string) (string, error)
 	OnPage() (string, error)
+	Once() error
 	UpdateResults(map[string]any)
 	Get(string) interface{}
 }

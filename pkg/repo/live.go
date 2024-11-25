@@ -126,15 +126,24 @@ func (l *LiveReload) GetPages(book *models.Book) ([]*models.Page, error) {
 	return pages, nil
 }
 
-func (l *LiveReload) GetPage(book *models.Book, currentPagePath, pageID string) (*models.Page, error) {
-	pagePath, err := l.findPageFile(book, currentPagePath, pageID)
+func (l *LiveReload) GetPage(book *models.Book, currentPagePath, pageIDHint string) (*models.Page, error) {
+	pagePath, err := l.findPageFile(book, currentPagePath, pageIDHint)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to find page file")
 	}
 
+	fullPageID := pageIDfromPath(pagePath)
+
 	return &models.Page{
 		Book:     book,
-		PageID:   pageID,
+		PageID:   fullPageID,
 		PagePath: pagePath,
 	}, nil
+}
+
+func pageIDfromPath(path string) string {
+	if pos := strings.LastIndexByte(path, '.'); pos != -1 {
+		return path[:pos]
+	}
+	return path
 }

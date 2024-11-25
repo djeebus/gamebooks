@@ -14,6 +14,8 @@ import (
 	"github.com/yuin/goldmark/parser"
 	"html/template"
 	"net/http"
+	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -54,6 +56,8 @@ func getBookID(c echo.Context) string {
 	return c.Param("bookID")
 }
 
+const oncePageIDStorageKey = "--once--"
+
 func (v *views) gameView(c echo.Context) error {
 	userID := getUserID(c)
 	bookID := getBookID(c)
@@ -91,8 +95,8 @@ func (v *views) gameView(c echo.Context) error {
 		return reloadPage(c)
 	}
 
-	if debugPageID := c.QueryParam("debug.go"); debugPageID != "" {
-		pageID = debugPageID
+	if err := v.processDebugCommands(c, s, &pageID); err != nil {
+		return errors.Wrap(err, "failed to process debug commands")
 	}
 
 	page, err := v.ctr.Repo.GetPage(book, "", pageID)
@@ -108,13 +112,26 @@ func (v *views) gameView(c echo.Context) error {
 	if nextPageID, err := pageResults.OnPage(); err != nil {
 		return errors.Wrap(err, "failed to execute page.on_page handler")
 	} else if nextPageID != "" {
-		return v.navigateThroughPageID(c, s, book, pageID, nextPageID)
+		return v.navigateThroughPageID(c, s, book, page.PagePath, nextPageID)
+	}
+
+	onceFlag, err := s.Get(oncePageIDStorageKey)
+	if err != nil {
+		return errors.Wrap(err, "failed to get once flag")
+	}
+	if onceFlag != pageID {
+		if err = pageResults.Once(); err != nil {
+			return errors.Wrap(err, "failed to execute page.once handler")
+		}
+		if err = s.Set(oncePageIDStorageKey, pageID); err != nil {
+			return errors.Wrap(err, "failed to set once flag")
+		}
 	}
 
 	if pageID, err := bookResults.OnPage(page, pageResults); err != nil {
 		return errors.Wrap(err, "failed to execute book.on_page handler")
 	} else if pageID != "" {
-		return v.navigateThroughPageID(c, s, book, pageID, pageID)
+		return v.navigateThroughPageID(c, s, book, page.PagePath, pageID)
 	}
 
 	value := pageResults.Get("clear_history")
@@ -130,8 +147,9 @@ func (v *views) gameView(c echo.Context) error {
 	}
 
 	if command := c.QueryParam("cmd"); command != "" {
+		command, args := splitCommand(command)
 		for {
-			nextPageID, err := pageResults.OnCommand(command)
+			nextPageID, err := pageResults.OnCommand(command, args)
 			if err != nil {
 				return errors.Wrap(err, "failed to execute command")
 			}
@@ -142,7 +160,7 @@ func (v *views) gameView(c echo.Context) error {
 				command = nextPageID
 				continue
 			}
-			return v.navigateThroughPageID(c, s, book, pageID, nextPageID)
+			return v.navigateThroughPageID(c, s, book, page.PagePath, nextPageID)
 		}
 	}
 
@@ -162,6 +180,19 @@ func (v *views) gameView(c echo.Context) error {
 	return v.renderTemplate(c, "page.gohtml", viewModel)
 }
 
+func splitCommand(command string) (string, []string) {
+	command = strings.TrimPrefix(command, "!")
+	parts := strings.Split(command, "!")
+	switch len(parts) {
+	case 0:
+		return "", nil
+	case 1:
+		return parts[0], nil
+	default:
+		return parts[0], parts[1:]
+	}
+}
+
 func (v *views) getBookStorage(userID string, bookID string) storage.Storage {
 	s := v.ctr.Storage
 	s = storage.NamespacedStorage(s, userID)
@@ -175,8 +206,8 @@ func reloadPage(c echo.Context) error {
 	return c.Redirect(http.StatusTemporaryRedirect, path)
 }
 
-func (v *views) navigateThroughPageID(c echo.Context, s storage.Storage, book *models.Book, currentPageID, pageID string) error {
-	page, err := v.ctr.Repo.GetPage(book, currentPageID, pageID)
+func (v *views) navigateThroughPageID(c echo.Context, s storage.Storage, book *models.Book, currentPagePath, pageID string) error {
+	page, err := v.ctr.Repo.GetPage(book, currentPagePath, pageID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to find page: %q", pageID)
 	}
@@ -185,7 +216,10 @@ func (v *views) navigateThroughPageID(c echo.Context, s storage.Storage, book *m
 }
 
 func (v *views) navigateThroughPagePath(c echo.Context, s storage.Storage, pageID string) error {
-	storage.Push[string](s, previousPageIDsKey, pageID)
+	if err := storage.Push[string](s, previousPageIDsKey, pageID); err != nil {
+		return errors.Wrap(err, "failed to push previous page path")
+	}
+
 	if err := s.Set(keyPageID, pageID); err != nil {
 		return errors.Wrap(err, "failed to set new page path")
 	}
@@ -195,7 +229,9 @@ func (v *views) navigateThroughPagePath(c echo.Context, s storage.Storage, pageI
 }
 
 func (v *views) navigateToPrevious(c echo.Context, s storage.Storage) error {
-	storage.Pop[string](s, previousPageIDsKey) // throw away current page id
+	if _, err := storage.Pop[string](s, previousPageIDsKey); err != nil { // throw away current page id
+		return errors.Wrap(err, "failed to pop previous page id")
+	}
 	prevPagePath := storage.Peek[string](s, previousPageIDsKey)
 
 	if err := s.Set(keyPageID, prevPagePath); err != nil {
@@ -210,6 +246,7 @@ type pageModel struct {
 	Book  models.BookResult
 	Page  *models.Page
 	HTML  template.HTML
+	Log   []string
 }
 
 func (v *views) buildBreadcrumbs(s storage.Storage) string {
@@ -259,9 +296,13 @@ func (v *views) generatePageViewModel(
 
 	text = buf.String()
 
+	logs := storage.GetLog(s)
+	slices.Reverse(logs)
+
 	result := pageModel{
 		Book: bookResult,
 		Page: page,
+		Log:  logs,
 	}
 
 	links := markdown.GetLinksFromContext(context)
@@ -283,16 +324,45 @@ func (v *views) gameClear(c echo.Context) error {
 	return c.Redirect(http.StatusFound, fmt.Sprintf("/b/%s", bookID))
 }
 
-func (v *views) setPageID(c echo.Context) error {
-	userID := getUserID(c)
-	bookID := getBookID(c)
-	book, err := v.ctr.Repo.GetBookByID(bookID)
-	if err != nil {
-		return errors.Wrap(err, "failed to get book")
+func (v *views) processDebugCommands(c echo.Context, s storage.Storage, pageID *string) error {
+	var err error
+
+	for key, values := range c.QueryParams() {
+		if !strings.HasPrefix(key, "debug.") {
+			continue
+		}
+
+		key = strings.TrimPrefix(key, "debug.")
+		if key == "go" {
+			for _, value := range values {
+				*pageID = value
+				if err = s.Set(keyPageID, pageID); err != nil {
+					return errors.Wrap(err, "failed to set debug page id")
+				}
+			}
+			continue
+		}
+
+		if strings.HasPrefix(key, "set:") {
+			key = strings.TrimPrefix(key, "set:")
+			for _, value := range values {
+				var data any = value
+
+				if strings.HasPrefix(value, "int!") {
+					value = strings.TrimPrefix(value, "int!")
+					data, err = strconv.ParseInt(value, 10, 64)
+					if err != nil {
+						return errors.Wrap(err, "failed to parse int")
+					}
+
+				}
+
+				if err = s.Set(key, data); err != nil {
+					return errors.Wrapf(err, "failed to set %s = %s", key, value)
+				}
+			}
+		}
 	}
 
-	pageID := c.Param("pageID")
-	s := v.getBookStorage(userID, bookID)
-
-	return v.navigateThroughPageID(c, s, book, "", pageID)
+	return nil
 }

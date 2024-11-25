@@ -35,7 +35,6 @@ func New(
 	e.GET("/b/", v.listBooks)
 	e.GET("/b/:bookID", v.gameView)
 	e.GET("/b/:bookID/-/clear", v.gameClear)
-	e.GET("b/:bookID/-/page/:pageID", v.setPageID)
 
 	return e, nil
 }
