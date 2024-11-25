@@ -1,10 +1,43 @@
+load("./items.star", "all_items")
 load("./stats.star", "strength_add", "stat_dexterity")
 
 _fight_command = "fight"
+_fight_start_key = "fight-init"
 _strength_key_fmt = "enemy:%d"
+
+def _default_on_fight_start():
+    pass
+
+def _default_on_fight_end():
+    pass
+
+def _default_on_damage_given(_):
+    return 2
+
+def _default_on_damage_taken(_):
+    return 2
 
 
 def _fight_round(enemies, options):
+    callbacks = {
+        "on_fight_start": _default_on_fight_start,
+        "on_damage_given": _default_on_damage_given,
+        "on_damage_taken": _default_on_damage_taken,
+        "on_fight_end": _default_on_fight_end,
+    }
+
+    item_id = options.get("item_id")
+    if item_id:
+        item = all_items[item_id]
+        for key, val in item.items():
+            if key in callbacks:
+                callbacks[key] = val
+
+    init = storage_page_get(_fight_start_key)
+    if init != True:
+        callbacks["on_fight_start"]()
+        storage_page_set(_fight_start_key, True)
+
     enemy = None
     for index, enemy in enumerate(enemies):
         enemy_strength = storage_page_get(_strength_key_fmt % index)
@@ -26,20 +59,21 @@ def _fight_round(enemies, options):
     log("enemy power = %d" % enemy_power)
 
     if self_power > enemy_power:
-        on_damage_dealt = options.get("on_damage_dealt")
-        damage_dealt = on_damage_dealt(enemy) if on_damage_dealt != None else None
-        damage_dealt = 2 if damage_dealt == None else damage_dealt
+        damage_dealt = callbacks["on_damage_given"](enemy)
         log("you have hit the %s for %d damage" % (enemy["name"], damage_dealt))
         enemy_strength -= damage_dealt
         storage_page_set(_strength_key_fmt % index, enemy_strength)
 
-        return enemy_strength <= 0 if is_last_enemy else False
+        if is_last_enemy:
+            if enemy_strength <= 0:
+                callbacks["on_fight_end"]()
+                return True
+
+        return False
 
     if self_power < enemy_power:
-        calculator = options.get("calculate_damage_taken")
-        damage_taken = calculator if calculator != None else 2
+        damage_taken = callbacks["on_damage_taken"](enemy)
         strength_add(-damage_taken)
-
 
 _enemy_key = "enemy-data"
 

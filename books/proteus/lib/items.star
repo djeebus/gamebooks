@@ -1,3 +1,26 @@
+
+def _elusiveness_potion_on_fight_start():
+    storage_page_set("damage-counter", 0)
+
+def _elusiveness_potion_on_damage_taken(_):
+    index = storage_page_get("damage-counter")
+    if index < 3:
+        index += 1
+        storage_page_set("damage-counter", index)
+        return 1
+
+    return 2
+
+def _duality_potion_on_damage_taken(enemy):
+    # if damage would drop to 0
+    # if double hasn't died yet
+    # reset health to original
+    # mark double as dead
+
+def _duality_potion_on_fight_end():
+    # if double is not dead
+    # reset health to original
+
 all_items = {
     "truth-seeking-potion": {
         "name": "Truth-seeking potion",
@@ -38,10 +61,14 @@ all_items = {
     "duality-potion": {
         "name": "Duality",
         "description": "An enemy will actually fight someone who only appears to be you. The battle proceeds in the normal way (See Rules for Fighting), but only if the creature wins in that battle will the real you have to fight him.",
+        "on_damage_taken": _duality_potion_on_damage_taken,
+        "on_fight_end": _duality_potion_on_fight_end,
     },
     "elusiveness-potion": {
         "name": "Elusiveness",
         "description": "This makes you difficult for an enemy to hit. You will lose only 1 Strength point for the first three rounds of that battle (See Rules for Fighting).",
+        "on_fight_start": _elusiveness_potion_on_fight_start,
+        "on_damage_taken": _elusiveness_potion_on_damage_taken,
     },
     "madness-potion": {
         "name": "Madness",
@@ -50,5 +77,9 @@ all_items = {
     "revitalization-potion": {
         "name": "Revitalization",
         "description": "Restores Strength points to their Initial level (See Rules for Fighting).",
+    },
+
+    "amulet-of-stone": {
+        "name": "Amulet of Stone",
     },
 }

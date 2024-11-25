@@ -11,9 +11,6 @@ You close in final combat:
 
 %s
 
-Dexterity Strength
-BELENGHAST 14 22
-If you defeat him, turn to 198.
 """ % fight_render("BELENGHAST", 14, 22)
 
-on_command = fight_build_command({"goto": 198})
+on_command = fight_build_command({"goto": "198"})

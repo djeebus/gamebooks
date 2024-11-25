@@ -58,6 +58,9 @@ def stat_dexterity(value = None):
     return _get_or_set(_dexterity_key, _initial_dexterity_key, value)
 
 
+def dexterity_add(value):
+    return _add(_dexterity_key, _initial_dexterity_key, value)
+
 def stat_strength(value = None):
     return _get_or_set(_strength_key, _initial_strength_key, value)
 
