@@ -1,3 +1,4 @@
+load("./stats.star", "stat_strength")
 
 def _elusiveness_potion_on_fight_start():
     storage_page_set("damage-counter", 0)
@@ -11,7 +12,17 @@ def _elusiveness_potion_on_damage_taken(_):
 
     return 2
 
+_double_strength_key = "--double-strength--"
+
 def _duality_potion_on_damage_taken(enemy):
+    double_strength = storage_get(_double_strength_key)
+    if double_strength == None:
+        double_strength = stat_strength()
+        storage_set(_double_strength_key, double_strength)
+
+    damage = 2
+    if enemy["strength"] <= 2:
+
     # if damage would drop to 0
     # if double hasn't died yet
     # reset health to original
