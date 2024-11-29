@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"gamebooks/pkg"
 	"gamebooks/pkg/container"
+	"gamebooks/pkg/game"
 	"gamebooks/pkg/markdown"
 	"gamebooks/pkg/storage"
 	"github.com/pkg/errors"
@@ -13,6 +14,20 @@ import (
 	"path/filepath"
 	"slices"
 )
+
+type linterView struct {
+	links []string
+}
+
+func (l linterView) Reload() error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (l linterView) Render(opts game.RenderOptions) error {
+	//TODO implement me
+	panic("implement me")
+}
 
 func lintBook(ctr container.Container, bookName string) error {
 	bookDir := filepath.Join("books", bookName)
@@ -44,39 +59,15 @@ func lintBook(ctr container.Container, bookName string) error {
 	pages, err := ctr.Repo.GetPages(book)
 	for _, page := range pages {
 		fullPagePath := filepath.Join(book.Path, page.PagePath)
-		results, err := ctr.Executor.ExecutePage(book, page, s)
-		if err != nil {
-			fmt.Printf("%s: %v\n", fullPagePath, err)
-			continue
+
+		var view linterView
+
+		g := game.New(ctr, &view)
+		if err := g.Execute(book.ID, s, game.ExecuteOptions{QueryParams: map[string][]string{}}); err != nil {
+			return errors.Wrap(err, "failed to execute page")
 		}
 
-		context := parser.NewContext()
-		markdown.SetCurrentBook(context, book)
-		markdown.SetCurrentPageID(context, page.PageID)
-
-		result, err := results.OnPage()
-		if err != nil {
-			fmt.Printf("%s: %v\n", fullPagePath, err)
-		}
-		if result != "" {
-			needed.Add(result)
-			continue
-		}
-
-		text, ok := results.Get("markdown").(string)
-		if !ok {
-			fmt.Printf("%s: failed to find markdown\n", fullPagePath)
-			continue
-		}
-
-		var buf bytes.Buffer
-		if err := ctr.Markdown.Convert([]byte(text), &buf, parser.WithContext(context)); err != nil {
-			fmt.Printf("%s: %v\n", fullPagePath, err)
-			continue
-		}
-
-		links := markdown.GetLinksFromContext(context)
-		for _, link := range links {
+		for _, link := range view.links {
 			needed.Add(link)
 		}
 
