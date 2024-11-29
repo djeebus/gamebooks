@@ -14,5 +14,5 @@ you 2 Strength points throughout the battle.
 
 on_command = fight_build_command({
     "goto": "126",
-    "item_id": "strength-potion",
+    "item_id": "power-potion",
 })
