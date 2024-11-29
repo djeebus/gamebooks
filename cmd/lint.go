@@ -80,7 +80,7 @@ func lintBook(ctr container.Container, bookName string) error {
 			needed.Add(link)
 		}
 
-		rendered.Add(page.PagePath)
+		rendered.Add(page.PageID)
 	}
 
 	missing := needed.Without(rendered)
@@ -91,9 +91,9 @@ func lintBook(ctr container.Container, bookName string) error {
 		}
 		slices.Sort(keys)
 
-		fmt.Println("Missing pages:", len(missing))
+		fmt.Println(len(missing), "missing pages")
 		for key := range missing {
-			fmt.Println("Missing page:", key)
+			fmt.Println("- ", key)
 		}
 	}
 

@@ -1,3 +1,6 @@
+load("../lib/inventory.star", "inventory_add")
+
+
 def once():
     inventory_add("copper-key")
 

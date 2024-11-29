@@ -11,7 +11,7 @@ greater, [turn to 171](171).
 
 def on_command(cmd, args):
     if cmd == "next":
-        score = roll_dice()
+        score = dice_roll()
         if score < stat_courage():
             return "47"
         else:

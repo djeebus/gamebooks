@@ -1,3 +1,5 @@
+load("../lib/fight.star", "fight_render", "fight_build_command")
+
 markdown = """
 The ZOMBIE backs away, eyeing your silver
 lance warily. You close for the attack. Even
