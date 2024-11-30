@@ -33,9 +33,11 @@ type ExecuteOptions struct {
 }
 
 type RenderOptions struct {
-	Title string
-	HTML  string
-	Logs  []string
+	Commands []string
+	HTML     string
+	Links    []string
+	Logs     []string
+	Title    string
 }
 
 type View interface {
@@ -67,12 +69,21 @@ func (e Engine) Execute(bookID string, s storage.Storage, opts ExecuteOptions) e
 		}
 	}
 
-	pageID := storage.GetString(s, keyPageID)
+	var pageID string
+	for _, debugPageID := range opts.QueryParams["debug.go"] {
+		pageID = debugPageID
+	}
+
+	if pageID == "" {
+		pageID = storage.GetString(s, keyPageID)
+	}
+
 	if pageID == "" {
 		pageID := bookResults.GetStartPage()
 		if err = s.Set(keyPageID, pageID); err != nil {
 			return errors.Wrap(err, "failed to set current page path")
 		}
+
 		if err = storage.Push[string](s, previousPageIDsKey, pageID); err != nil {
 			return errors.Wrap(err, "failed to set previous page paths")
 		}
@@ -145,7 +156,7 @@ func (e Engine) Execute(bookID string, s storage.Storage, opts ExecuteOptions) e
 		}
 	}
 
-	html, links, err := e.buildHTML(s, book, page, pageResults)
+	html, links, commands, err := e.buildHTML(s, book, page, pageResults)
 	if err != nil {
 		return errors.Wrap(err, "failed to build html")
 	}
@@ -166,9 +177,11 @@ func (e Engine) Execute(bookID string, s storage.Storage, opts ExecuteOptions) e
 	logs := storage.GetLog(s)
 
 	return e.view.Render(RenderOptions{
-		Title: bookResults.GetName(),
-		HTML:  html,
-		Logs:  logs,
+		Commands: commands,
+		HTML:     html,
+		Links:    links,
+		Logs:     logs,
+		Title:    bookResults.GetName(),
 	})
 }
 
@@ -183,10 +196,10 @@ func (e Engine) buildBreadcrumbs(pageIDs []string) string {
 	return result
 }
 
-func (e Engine) buildHTML(s storage.Storage, book *models.Book, page *models.Page, pageResult models.PageResult) (string, []string, error) {
+func (e Engine) buildHTML(s storage.Storage, book *models.Book, page *models.Page, pageResult models.PageResult) (string, []string, []string, error) {
 	text, ok := pageResult.Get("markdown").(string)
 	if !ok {
-		return "", nil, errors.New("failed to find markdown field")
+		return "", nil, nil, errors.New("failed to find markdown field")
 	}
 
 	pageIDs := storage.GetSlice[string](s, previousPageIDsKey)
@@ -204,14 +217,15 @@ func (e Engine) buildHTML(s storage.Storage, book *models.Book, page *models.Pag
 
 	var buf bytes.Buffer
 	if err := e.ctr.Markdown.Convert([]byte(text), &buf, parser.WithContext(context)); err != nil {
-		return "", nil, errors.Wrap(err, "failed to render markdown")
+		return "", nil, nil, errors.Wrap(err, "failed to render markdown")
 	}
 
 	text = buf.String()
 
 	links := markdown.GetLinksFromContext(context)
+	commands := markdown.GetCommandsFromContext(context)
 
-	return text, links, nil
+	return text, links, commands, nil
 }
 
 func (e Engine) navigateThroughPageID(s storage.Storage, book *models.Book, currentPagePath, pageID string) error {

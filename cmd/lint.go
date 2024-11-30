@@ -1,32 +1,28 @@
 package cmd
 
 import (
-	"bytes"
 	"fmt"
 	"gamebooks/pkg"
 	"gamebooks/pkg/container"
 	"gamebooks/pkg/game"
-	"gamebooks/pkg/markdown"
 	"gamebooks/pkg/storage"
 	"github.com/pkg/errors"
-	"github.com/yuin/goldmark/parser"
 	"os"
 	"path/filepath"
 	"slices"
 )
 
 type linterView struct {
-	links []string
+	opts game.RenderOptions
 }
 
-func (l linterView) Reload() error {
-	//TODO implement me
-	panic("implement me")
+func (l *linterView) Reload() error {
+	return nil
 }
 
-func (l linterView) Render(opts game.RenderOptions) error {
-	//TODO implement me
-	panic("implement me")
+func (l *linterView) Render(opts game.RenderOptions) error {
+	l.opts = opts
+	return nil
 }
 
 func lintBook(ctr container.Container, bookName string) error {
@@ -45,12 +41,6 @@ func lintBook(ctr container.Container, bookName string) error {
 		return errors.Wrap(err, "failed to get book")
 	}
 
-	s := storage.NewInMemory()
-	_, err = ctr.Executor.ExecuteBook(book, s)
-	if err != nil {
-		return errors.Wrap(err, "failed to execute book")
-	}
-
 	var (
 		rendered = pkg.NewSet()
 		needed   = pkg.NewSet()
@@ -58,17 +48,37 @@ func lintBook(ctr container.Container, bookName string) error {
 
 	pages, err := ctr.Repo.GetPages(book)
 	for _, page := range pages {
-		fullPagePath := filepath.Join(book.Path, page.PagePath)
+		s := storage.NewInMemory()
+		if err := s.Set("lint-mode", true); err != nil {
+			return errors.Wrap(err, "failed to set lint mode")
+		}
+
+		_, err = ctr.Executor.ExecuteBook(book, s)
+		if err != nil {
+			return errors.Wrap(err, "failed to execute book")
+		}
 
 		var view linterView
 
+		query := map[string][]string{"debug.go": {page.PageID}}
+
 		g := game.New(ctr, &view)
-		if err := g.Execute(book.ID, s, game.ExecuteOptions{QueryParams: map[string][]string{}}); err != nil {
-			return errors.Wrap(err, "failed to execute page")
+		if err := g.Execute(book.ID, s, game.ExecuteOptions{QueryParams: query}); err != nil {
+			fmt.Printf("- %s: failed to execute page: %v\n", page.PageID, err)
+			continue
 		}
 
-		for _, link := range view.links {
+		for _, link := range view.opts.Links {
 			needed.Add(link)
+		}
+
+		for _, command := range view.opts.Commands {
+			if err := g.Execute(book.ID, s, game.ExecuteOptions{QueryParams: map[string][]string{
+				"cmd": {command},
+			}}); err != nil {
+				fmt.Printf("- %s: failed to execute %q command: %v\n", page.PageID, command, err)
+				continue
+			}
 		}
 
 		rendered.Add(page.PageID)

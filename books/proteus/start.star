@@ -33,9 +33,12 @@ def _select(potion_id):
 
 
 def _start():
+    lint_mode = storage_get("lint-mode")
+    required_count = 12 if lint_mode else 6
+
     potion_ids = storage_page_get(_potions_key) or list()
-    if len(potion_ids) != 6:
-        fail("must select 6 potions, only selected %d" % len(potion_ids))
+    if len(potion_ids) != required_count:
+        fail("must select %d potions, only selected %d" % (required_count, len(potion_ids)))
 
     for potion_id in potion_ids:
         inventory_add(potion_id)

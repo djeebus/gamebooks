@@ -16,7 +16,8 @@ import (
 )
 
 type echoView struct {
-	c              echo.Context
+	c echo.Context
+
 	renderTemplate func(c echo.Context, template string, model any) error
 }
 

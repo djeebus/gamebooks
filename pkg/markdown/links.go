@@ -44,6 +44,17 @@ func (l linkTrackingParser) Trigger() []byte {
 }
 
 var linkPageIDs = parser.NewContextKey()
+var linkCommands = parser.NewContextKey()
+
+func appendToKey[T any](pc parser.Context, key parser.ContextKey, value T) {
+	stored, ok := pc.Get(key).([]T)
+	if !ok {
+		stored = []T{}
+	}
+
+	stored = append(stored, value)
+	pc.Set(key, stored)
+}
 
 func (l linkTrackingParser) Parse(parent ast.Node, block text.Reader, pc parser.Context) ast.Node {
 	result := l.wrapped.Parse(parent, block, pc)
@@ -58,6 +69,7 @@ func (l linkTrackingParser) Parse(parent ast.Node, block text.Reader, pc parser.
 	}
 
 	if destination[0] == '!' {
+		appendToKey(pc, linkCommands, destination)
 		link.Destination = append([]byte("?cmd="), link.Destination[1:]...)
 		return link
 	}
@@ -67,11 +79,6 @@ func (l linkTrackingParser) Parse(parent ast.Node, block text.Reader, pc parser.
 
 	pageID := string(link.Destination)
 
-	stored, ok := pc.Get(linkPageIDs).([]string)
-	if !ok {
-		stored = []string{}
-	}
-
 	currentPageID = filepath.Join(book.Path, currentPageID)
 	currentPageDir := filepath.Dir(currentPageID)
 	newPageID := filepath.Join(currentPageDir, pageID)
@@ -80,12 +87,19 @@ func (l linkTrackingParser) Parse(parent ast.Node, block text.Reader, pc parser.
 		panic("failed to generate link")
 	}
 
-	stored = append(stored, newPageID)
-	pc.Set(linkPageIDs, stored)
+	appendToKey(pc, linkPageIDs, newPageID)
 
 	link.Destination = append([]byte("?goto="), []byte(newPageID)...)
 
 	return result
+}
+
+func GetCommandsFromContext(context parser.Context) []string {
+	commands, ok := context.Get(linkCommands).([]string)
+	if !ok {
+		return nil
+	}
+	return commands
 }
 
 func GetLinksFromContext(context parser.Context) []string {
