@@ -1,4 +1,4 @@
-package storage
+package bbolt
 
 import (
 	"github.com/pkg/errors"
@@ -9,7 +9,7 @@ import (
 
 var bucketName = []byte("game")
 
-type BBoltStorage struct {
+type Storage struct {
 	db *bbolt.DB
 }
 
@@ -32,7 +32,7 @@ func ensureBucket(db *bbolt.DB) error {
 	return nil
 }
 
-func (b *BBoltStorage) Get(key string) (interface{}, error) {
+func (b *Storage) Get(key string) (interface{}, error) {
 	var data []byte
 
 	if err := b.db.Batch(func(tx *bbolt.Tx) error {
@@ -54,7 +54,7 @@ func (b *BBoltStorage) Get(key string) (interface{}, error) {
 	return result, nil
 }
 
-func (b *BBoltStorage) Set(key string, value interface{}) error {
+func (b *Storage) Set(key string, value interface{}) error {
 	data, err := msgpack.Marshal(value)
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal data")
@@ -69,13 +69,13 @@ func (b *BBoltStorage) Set(key string, value interface{}) error {
 	return nil
 }
 
-func (b *BBoltStorage) Remove(key string) error {
+func (b *Storage) Remove(key string) error {
 	return b.db.Batch(func(tx *bbolt.Tx) error {
 		return tx.Bucket(bucketName).Delete([]byte(key))
 	})
 }
 
-func (b *BBoltStorage) Clear(keyPrefix string) error {
+func (b *Storage) Clear(keyPrefix string) error {
 	return b.db.Batch(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket(bucketName)
 		if err := bucket.ForEach(func(k, _ []byte) error {
@@ -92,9 +92,9 @@ func (b *BBoltStorage) Clear(keyPrefix string) error {
 	})
 }
 
-var _ Storage = new(BBoltStorage)
+var _ Storage = new(Storage)
 
-func NewBBolt(path string) (*BBoltStorage, error) {
+func New(path string) (*Storage, error) {
 	db, err := bbolt.Open(path, 0600, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open database")
@@ -104,5 +104,5 @@ func NewBBolt(path string) (*BBoltStorage, error) {
 		return nil, errors.Wrap(err, "failed to create bucket")
 	}
 
-	return &BBoltStorage{db}, nil
+	return &Storage{db}, nil
 }

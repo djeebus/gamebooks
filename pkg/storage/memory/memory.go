@@ -1,8 +1,11 @@
-package storage
+package memory
 
-import "strings"
+import (
+	"gamebooks/pkg/storage"
+	"strings"
+)
 
-func NewInMemory() Storage {
+func New() storage.Storage {
 	return &InMemory{
 		data: make(map[string]interface{}),
 	}
