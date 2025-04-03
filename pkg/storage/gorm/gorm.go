@@ -48,6 +48,10 @@ func (g *Gorm) Get(key string) (interface{}, error) {
 		return nil, errors.Wrap(err, "failed to find key")
 	}
 
+	if model.Value == nil {
+		return nil, nil
+	}
+
 	var data any
 	if err := g.unmarshal(model.Value, &data); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal key")

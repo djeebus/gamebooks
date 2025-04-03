@@ -22,3 +22,6 @@ def bank_withdraw(amount):
     cash = bank_balance()
     cash -= amount
     storage_set(_cash_key, cash)
+
+def bank_empty():
+    storage_set(_cash_key, 0)

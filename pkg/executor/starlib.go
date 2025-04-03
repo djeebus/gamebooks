@@ -45,7 +45,7 @@ func starlarkPredeclared(s storage.Storage, page *models.Page) starlark.StringDi
 
 			value, err := s.Get(key)
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to get value")
+				return nil, errors.Wrapf(err, "failed to get %q from storage", key)
 			}
 			return makeStarlarkValue(value)
 		}),
@@ -190,6 +190,19 @@ func starlarkPredeclared(s storage.Storage, page *models.Page) starlark.StringDi
 			}
 			return starlark.None, nil
 		}),
+		"debug": starlark.NewBuiltin("debug", func(thread *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+			var message string
+
+			if err := starlark.UnpackArgs(fn.Name(),
+				args, kwargs,
+				"message", &message,
+			); err != nil {
+				return nil, errors.Wrap(err, "failed to parse debug args")
+			}
+
+			log.Debug().Msg(message)
+			return starlark.None, nil
+		}),
 	}
 }
 
@@ -295,6 +308,8 @@ func makeStarlarkValue(value interface{}) (starlark.Value, error) {
 		return starlark.MakeInt(v), nil
 	case int64:
 		return starlark.MakeInt64(v), nil
+	case float64:
+		return starlark.Float(v), nil
 	case map[string]interface{}:
 		var result starlark.Dict
 		for key, value := range v {

@@ -8,7 +8,7 @@ load("./lib/inventory.star", "inventory_list")
 load("./lib/stamina.star", "stamina_get", "stamina_get_max")
 load("./lib/title.star", "title_assert")
 
-start_page = "start"
+start_page = "start.star"
 
 def _fight(combat, defense, stamina, success_page_id, fail_page_id):
     return "!" + success_page_id

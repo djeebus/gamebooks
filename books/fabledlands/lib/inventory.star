@@ -9,11 +9,17 @@ def _get():
 def _set(items):
     storage_set(_inventory_key, items)
 
+def inventory_clear():
+    storage_set(_inventory_key, [])
+
 def inventory_add(item):
     storage_push(_inventory_key, item)
 
 def inventory_list():
-    return storage_get(_inventory_key)
+    items = storage_get(_inventory_key)
+    if items == None:
+        return []
+    return items
 
 def inventory_remove(item_id):
     items = _get()
