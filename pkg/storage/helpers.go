@@ -57,6 +57,7 @@ func GetSlice[T any](s Storage, key string) []T {
 		r, ok := item.(T)
 		if !ok {
 			log.Error().Err(err).Msg("value was not a T")
+
 			continue
 		}
 		result = append(result, r)

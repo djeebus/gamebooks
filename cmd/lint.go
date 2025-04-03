@@ -47,6 +47,10 @@ func lintBook(ctr container.Container, bookName string) error {
 	)
 
 	pages, err := ctr.Repo.GetPages(book)
+	if err != nil {
+		return errors.Wrap(err, "failed to get pages")
+	}
+
 	for _, page := range pages {
 		s := storage.NewInMemory()
 		if err := s.Set("lint-mode", true); err != nil {
@@ -65,6 +69,7 @@ func lintBook(ctr container.Container, bookName string) error {
 		g := game.New(ctr, &view)
 		if err := g.Execute(book.ID, s, game.ExecuteOptions{QueryParams: query}); err != nil {
 			fmt.Printf("- %s: failed to execute page: %v\n", page.PageID, err)
+
 			continue
 		}
 
@@ -77,6 +82,7 @@ func lintBook(ctr container.Container, bookName string) error {
 				"cmd": {command},
 			}}); err != nil {
 				fmt.Printf("- %s: failed to execute %q command: %v\n", page.PageID, command, err)
+
 				continue
 			}
 		}

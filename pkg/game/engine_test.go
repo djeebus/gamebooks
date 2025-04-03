@@ -1,4 +1,4 @@
-package web
+package game
 
 import (
 	"github.com/stretchr/testify/assert"

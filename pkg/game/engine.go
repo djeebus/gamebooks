@@ -280,7 +280,6 @@ func (e Engine) processDebugCommands(opts ExecuteOptions, s storage.Storage, pag
 					if err != nil {
 						return errors.Wrap(err, "failed to parse int")
 					}
-
 				}
 
 				if err = s.Set(key, data); err != nil {

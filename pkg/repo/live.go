@@ -90,6 +90,10 @@ func (l *LiveReload) GetPages(book *models.Book) ([]*models.Page, error) {
 	var pages []*models.Page
 
 	if err := filepath.Walk(book.Path, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return errors.Wrapf(err, "failed to walk %q", path)
+		}
+
 		rel, err := filepath.Rel(book.Path, path)
 		if err != nil {
 			return errors.Wrap(err, "failed to calculate relative path")

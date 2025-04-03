@@ -22,5 +22,6 @@ func (s Set) Without(other Set) Set {
 	for k := range other {
 		out.Remove(k)
 	}
+
 	return out
 }

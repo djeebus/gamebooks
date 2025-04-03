@@ -17,13 +17,13 @@ const authCookieDuration = time.Hour * 24 * 30 // one month
 
 func addSessionID(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		cookie, err := c.Cookie(authCookieName)
+		_, err := c.Cookie(authCookieName)
 		if err != nil {
 			if !errors.Is(err, http.ErrNoCookie) {
 				return errors.Wrap(err, "invalid cookie")
 			}
 
-			cookie = &http.Cookie{
+			cookie := &http.Cookie{
 				Name:    authCookieName,
 				Value:   uuid.NewString(),
 				Expires: time.Now().Add(authCookieDuration),

@@ -1,0 +1,15 @@
+version: "2"
+
+linters:
+  default: all
+
+  disable:
+    - depguard
+    - perfsprint
+    - prealloc
+    - revive
+    - varnamelen
+    - wrapcheck
+
+    - testpackage # disagree
+    - wsl # annoyting
