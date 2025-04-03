@@ -33,6 +33,22 @@ func starlarkPredeclared(s storage.Storage, page *models.Page) starlark.StringDi
 
 			return starlark.MakeInt(total), nil
 		}),
+		"log": starlark.NewBuiltin("log", func(thread *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+			var msg string
+
+			if err := starlark.UnpackArgs(
+				fn.Name(), args, kwargs,
+				"msg", &msg,
+			); err != nil {
+				return nil, errors.Wrap(err, "failed to parse log args")
+			}
+
+			if err := storage.Log(s, msg); err != nil {
+				return nil, errors.Wrap(err, "failed to store log")
+			}
+
+			return starlark.None, nil
+		}),
 		"storage_get": starlark.NewBuiltin("storage_get", func(thread *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
 			var key string
 
@@ -264,6 +280,16 @@ func unwrapStarlarkValue(t *starlark.Thread, value starlark.Value) (interface{},
 			items = append(items, unwrapped)
 		}
 		return items, nil
+	case starlark.Tuple:
+		var items []any
+		for item := range v.Elements() {
+			unwrapped, err := unwrapStarlarkValue(t, item)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to unwrap item")
+			}
+			items = append(items, unwrapped)
+		}
+		return items, nil
 	case starlark.NoneType:
 		return nil, nil
 	case starlark.String:
@@ -329,7 +355,9 @@ func makeStarlarkValue(value interface{}) (starlark.Value, error) {
 		}
 		return &result, nil
 	case []any:
-		return makeStarlarkValueList(v)
+		return makeStarlarkValueList[any](v)
+	case []string:
+		return makeStarlarkValueList[string](v)
 	}
 
 	return nil, fmt.Errorf("cannot convert %T to starlark value", value)
@@ -353,7 +381,7 @@ func makeStarlarkKwargsTupleSlice(value map[string]any) ([]starlark.Tuple, error
 	return slice, nil
 }
 
-func makeStarlarkValueList(value []any) (starlark.Tuple, error) {
+func makeStarlarkValueList[T any](value []T) (starlark.Tuple, error) {
 	var results []starlark.Value
 	for _, item := range value {
 		wrapped, err := makeStarlarkValue(item)

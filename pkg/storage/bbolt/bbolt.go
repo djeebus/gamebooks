@@ -19,7 +19,7 @@ func ensureBucket(db *bbolt.DB) error {
 		if bucket != nil {
 			return nil
 		}
-		bucket, err := tx.CreateBucket(bucketName)
+		_, err := tx.CreateBucket(bucketName)
 		if err != nil {
 			return errors.Wrap(err, "failed to create bucket")
 		}
@@ -37,6 +37,7 @@ func (b *Storage) Get(key string) (interface{}, error) {
 
 	if err := b.db.Batch(func(tx *bbolt.Tx) error {
 		data = tx.Bucket(bucketName).Get([]byte(key))
+
 		return nil
 	}); err != nil {
 		return nil, errors.Wrap(err, "failed to get key")
@@ -88,6 +89,7 @@ func (b *Storage) Clear(keyPrefix string) error {
 		}); err != nil {
 			return errors.Wrap(err, "failed to delete keys")
 		}
+
 		return nil
 	})
 }

@@ -32,7 +32,7 @@ func (s starlarkPageResult) UpdateResults(dict map[string]any) {
 func (s starlarkPageResult) Markdown() string {
 	val, ok := s.result["markdown"].(string)
 	if !ok {
-		panic("fmissing required field: 'markdown'")
+		panic("missing required field: 'markdown'")
 	}
 
 	return val
@@ -65,13 +65,13 @@ func (s starlarkPageResult) OnPage() (string, error) {
 	return "", nil
 }
 
-func (s starlarkPageResult) OnCommand(command string) (string, error) {
+func (s starlarkPageResult) OnCommand(command string, args []string) (string, error) {
 	fn, ok := s.result["on_command"].(models.Callable)
 	if !ok {
 		return "", nil
 	}
 
-	result, err := fn([]any{command}, nil)
+	result, err := fn([]any{command, args}, nil)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to call on_command")
 	}
@@ -86,6 +86,24 @@ func (s starlarkPageResult) OnCommand(command string) (string, error) {
 	}
 
 	return sval, nil
+}
+
+func (s starlarkPageResult) Once() error {
+	fn, ok := s.result["once"].(models.Callable)
+	if !ok {
+		return nil
+	}
+
+	result, err := fn(nil, nil)
+	if err != nil {
+		return errors.Wrap(err, "failed to call once")
+	}
+
+	if result == nil {
+		return nil
+	}
+
+	return nil
 }
 
 func (s starlarkPageResult) Get(key string) any {

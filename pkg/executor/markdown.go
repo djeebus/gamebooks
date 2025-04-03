@@ -71,9 +71,21 @@ func (m markdownPageResults) Markdown() string {
 	return val
 }
 
-func (m markdownPageResults) OnCommand(command string) (string, error) {
+func (m markdownPageResults) Once() error {
+	if c, ok := m.metadata["once"].(models.Callable); ok {
+		_, err := c(nil, nil)
+		if err != nil {
+			return errors.Wrap(err, "failed to call OnCommand")
+		}
+
+		return nil
+	}
+	return nil
+}
+
+func (m markdownPageResults) OnCommand(command string, args []string) (string, error) {
 	if c, ok := m.metadata["on_command"].(models.Callable); ok {
-		result, err := c([]any{command}, nil)
+		result, err := c([]any{command, args}, nil)
 		if err != nil {
 			return "", errors.Wrap(err, "failed to call OnCommand")
 		}

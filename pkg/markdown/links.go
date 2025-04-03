@@ -3,12 +3,12 @@ package markdown
 import (
 	"gamebooks/pkg/models"
 	bookRepo "gamebooks/pkg/repo"
-	"github.com/rs/zerolog/log"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
+	"path/filepath"
 )
 
 type LinkTracker struct {
@@ -43,7 +43,18 @@ func (l linkTrackingParser) Trigger() []byte {
 	return l.wrapped.Trigger()
 }
 
-var linksKey = parser.NewContextKey()
+var linkPageIDs = parser.NewContextKey()
+var linkCommands = parser.NewContextKey()
+
+func appendToKey[T any](pc parser.Context, key parser.ContextKey, value T) {
+	stored, ok := pc.Get(key).([]T)
+	if !ok {
+		stored = []T{}
+	}
+
+	stored = append(stored, value)
+	pc.Set(key, stored)
+}
 
 func (l linkTrackingParser) Parse(parent ast.Node, block text.Reader, pc parser.Context) ast.Node {
 	result := l.wrapped.Parse(parent, block, pc)
@@ -52,43 +63,47 @@ func (l linkTrackingParser) Parse(parent ast.Node, block text.Reader, pc parser.
 		return result
 	}
 
-	stored, ok := pc.Get(linksKey).([]string)
-	if !ok {
-		stored = []string{}
-	}
-
 	destination := string(link.Destination)
 	if len(destination) == 0 {
 		return result
 	}
 
 	if destination[0] == '!' {
+		appendToKey(pc, linkCommands, destination)
 		link.Destination = append([]byte("?cmd="), link.Destination[1:]...)
 		return link
 	}
 
 	book := GetCurrentBook(pc)
-	pagePath := GetCurrentPagePath(pc)
+	currentPageID := GetCurrentPageID(pc)
 
 	pageID := string(link.Destination)
-	path, err := l.repo.FindPagePath(book, pagePath, pageID)
+
+	currentPageID = filepath.Join(book.Path, currentPageID)
+	currentPageDir := filepath.Dir(currentPageID)
+	newPageID := filepath.Join(currentPageDir, pageID)
+	newPageID, err := filepath.Rel(book.Path, newPageID)
 	if err != nil {
-		log.Warn().
-			Err(err).
-			Str("page_id", pageID).
-			Msg("page cannot be found")
+		panic("failed to generate link")
 	}
 
-	stored = append(stored, path)
-	pc.Set(linksKey, stored)
+	appendToKey(pc, linkPageIDs, newPageID)
 
-	link.Destination = append([]byte("?goto="), []byte(path)...)
+	link.Destination = append([]byte("?goto="), []byte(newPageID)...)
 
 	return result
 }
 
+func GetCommandsFromContext(context parser.Context) []string {
+	commands, ok := context.Get(linkCommands).([]string)
+	if !ok {
+		return nil
+	}
+	return commands
+}
+
 func GetLinksFromContext(context parser.Context) []string {
-	links, ok := context.Get(linksKey).([]string)
+	links, ok := context.Get(linkPageIDs).([]string)
 	if !ok {
 		return nil
 	}
@@ -97,7 +112,7 @@ func GetLinksFromContext(context parser.Context) []string {
 
 var currentPageKey = parser.NewContextKey()
 
-func GetCurrentPagePath(pc parser.Context) string {
+func GetCurrentPageID(pc parser.Context) string {
 	pagePath, ok := pc.Get(currentPageKey).(string)
 	if !ok {
 		panic("failed to find current page in context")
@@ -106,7 +121,7 @@ func GetCurrentPagePath(pc parser.Context) string {
 	return pagePath
 }
 
-func SetCurrentPagePath(pc parser.Context, path string) {
+func SetCurrentPageID(pc parser.Context, path string) {
 	pc.Set(currentPageKey, path)
 }
 

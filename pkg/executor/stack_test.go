@@ -13,11 +13,11 @@ func TestStack(t *testing.T) {
 
 	s.push(2)
 	n := s.pop()
-	assert.Equal(t, n, 2)
+	assert.Equal(t, 2, n)
 	assert.False(t, s.empty())
 
 	n = s.pop()
-	assert.Equal(t, n, 1)
+	assert.Equal(t, 1, n)
 	assert.True(t, s.empty())
 
 	s.push(3)

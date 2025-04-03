@@ -5,8 +5,8 @@ import (
 )
 
 type Repo interface {
-	FindPagePath(book *models.Book, currentPagePath string, pageID string) (string, error)
 	GetBooks() ([]*models.Book, error)
 	GetBookByID(bookID string) (*models.Book, error)
-	GetPage(bookID, pageID string) (*models.Page, error)
+	GetPage(book *models.Book, currentPagePath, pageID string) (*models.Page, error)
+	GetPages(book *models.Book) ([]*models.Page, error)
 }

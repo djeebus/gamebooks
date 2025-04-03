@@ -59,6 +59,8 @@ func (s starlarkBookResult) OnStart() error {
 	return nil
 }
 
+var ErrMissingMarkdown = errors.New("missing markdown field")
+
 func (s starlarkBookResult) OnPage(page *models.Page, result models.PageResult) (string, error) {
 	onPage := s.result["on_page"]
 	if onPage == nil {
@@ -79,11 +81,16 @@ func (s starlarkBookResult) OnPage(page *models.Page, result models.PageResult) 
 		return "", errors.Wrap(err, "failed to set page_id")
 	}
 
-	if err = input.SetKey(starlark.String("markdown"), starlark.String(result.Markdown())); err != nil {
+	markdown, ok := result.Get("markdown").(string)
+	if !ok {
+		return "", errors.Wrap(ErrMissingMarkdown, "missing markdown")
+	}
+	if err = input.SetKey(starlark.String("markdown"), starlark.String(markdown)); err != nil {
 		return "", errors.Wrap(err, "failed to set markdown")
 	}
 
 	if _, err = starlark.Call(s.t, onPage, []starlark.Value{input}, nil); err != nil {
+		log.Err(err).Msg("failed to call on_page")
 		return "", errors.Wrap(err, "failed to call on_page")
 	}
 

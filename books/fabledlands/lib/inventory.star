@@ -15,6 +15,13 @@ def inventory_clear():
 def inventory_add(item):
     storage_push(_inventory_key, item)
 
+def inventory_contains(item_id):
+    items = inventory_list()
+    for item in items:
+        if item['item_id'] == item_id:
+            return True
+    return False
+
 def inventory_list():
     items = storage_get(_inventory_key)
     if items == None:

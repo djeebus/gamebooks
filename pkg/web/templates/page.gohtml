@@ -1,3 +1,12 @@
 {{ define "content" }}
 {{ .HTML }}
+
+<br>
+
+<h3>Logs</h3>
+<ul>
+    {{ range $item := .Log }}
+        <li>{{ $item }}</li>
+    {{ end }}
+</ul>
 {{ end }}
