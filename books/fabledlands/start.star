@@ -114,8 +114,8 @@ Transfer the details of the character you have chosen to the Adventure Sheet.
 can_submit = True
 
 
-def on_command(name):
-    character = _characters[name]
+def on_command(cmd, args):
+    character = _characters[cmd]
     for key in ability_keys:
         ability_set(key, character[key])
 

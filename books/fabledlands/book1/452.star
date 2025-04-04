@@ -110,7 +110,4 @@ purchase price are not available locally.
 
 
 def on_command(command):
-    if on_command(command):
-        return
-
     fail("not implemented: %s" % command)

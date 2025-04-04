@@ -8,7 +8,7 @@ load("./lib/inventory.star", "inventory_list")
 load("./lib/stamina.star", "stamina_get", "stamina_get_max")
 load("./lib/title.star", "title_assert")
 
-start_page = "start.star"
+start_page = "start"
 
 def _fight(combat, defense, stamina, success_page_id, fail_page_id):
     return "!" + success_page_id
@@ -50,11 +50,8 @@ _base_commands = {
     'roll': _make_roll,
 }
 
-def on_command(command):
-    parts = command.split('!')
-    cmd = parts[0]
-    args = parts[1:]
-
+def on_command(cmd, args):
+    debug("base on_command")
     fn = _base_commands.get(cmd)
     if fn:
         return fn(*args)
@@ -79,13 +76,6 @@ def _codewords():
 
 
 def on_page(page):
-    # if "allow_return" not in page:
-    #     page["allow_return"] = False
-    # if "clear_history" not in page:
-    #     page["clear_history"] = True
-    # if "on_command" not in page:
-    #     page["on_command"] = on_command
-
     if page["page_id"] != start_page:
         markdown = page["markdown"]
 

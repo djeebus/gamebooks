@@ -270,6 +270,8 @@ func unwrapStarlarkValue(t *starlark.Thread, value starlark.Value) (interface{},
 			return nil, errors.New("int64 overflow")
 		}
 		return val, nil
+	case starlark.Float:
+		return float64(v), nil
 	case *starlark.List:
 		var items []any
 		for item := range v.Elements() {

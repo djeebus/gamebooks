@@ -5,7 +5,7 @@ import (
 	"gamebooks/pkg"
 	"gamebooks/pkg/container"
 	"gamebooks/pkg/game"
-	"gamebooks/pkg/storage"
+	"gamebooks/pkg/storage/memory"
 	"github.com/pkg/errors"
 	"os"
 	"path/filepath"
@@ -52,7 +52,7 @@ func lintBook(ctr container.Container, bookName string) error {
 	}
 
 	for _, page := range pages {
-		s := storage.NewInMemory()
+		s := memory.New()
 		if err := s.Set("lint-mode", true); err != nil {
 			return errors.Wrap(err, "failed to set lint mode")
 		}

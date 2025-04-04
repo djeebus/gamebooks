@@ -84,11 +84,12 @@ def on_page(page):
     if visits == 4:
         return "273"
 
-def on_command(command):
-    if command == "artefact-and-book":
+def on_command(cmd, args):
+    debug("book1/10.star on_command")
+    if cmd == "artefact-and-book":
         codeword_assert("artefact")
         inventory_assert("bookofthesevensages")
         return "40"
 
-    if command == "purchase-house":
+    if cmd == "purchase-house":
         house_purchase(200)
